@@ -3,6 +3,7 @@
 #include <adwaita.h>
 #include <astal-wlr.h>
 #include <gdk/wayland/gdkwayland.h>
+#include <math.h>
 #include <gio/gdesktopappinfo.h>
 #include <graphene.h>
 
@@ -110,12 +111,14 @@ push_rectangle_hints (UnityLauncherTile *self)
   if (!gtk_widget_compute_point (widget, GTK_WIDGET (root), &origin, &mapped))
     return;
 
+  int x = (int) lroundf (mapped.x);
+  int y = (int) lroundf (mapped.y);
+
   for (guint i = 0; i < n; i++)
     {
       g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (toplevels, i);
       if (tl != NULL)
-        astal_wlr_toplevel_set_rectangle (tl, wsurface,
-                                          (int) mapped.x, (int) mapped.y, w, h);
+        astal_wlr_toplevel_set_rectangle (tl, wsurface, x, y, w, h);
     }
 }
 

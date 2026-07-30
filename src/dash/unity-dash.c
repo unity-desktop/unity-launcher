@@ -238,9 +238,16 @@ unity_dash_toggle (UnityDash *self)
   g_return_if_fail (UNITY_IS_DASH (self));
 
   if (gtk_widget_get_visible (GTK_WIDGET (self)))
-    gtk_widget_set_visible (GTK_WIDGET (self), FALSE);
-  else
-    present_dash (self);
+    {
+      gtk_widget_set_visible (GTK_WIDGET (self), FALSE);
+      return;
+    }
+
+  present_dash (self);
+
+  /* Select the retained query, so an unminimize lets the user type over it. */
+  gtk_widget_grab_focus (GTK_WIDGET (self->entry));
+  gtk_editable_select_region (GTK_EDITABLE (self->entry), 0, -1);
 }
 
 static void

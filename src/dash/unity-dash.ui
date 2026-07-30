@@ -4,7 +4,7 @@
   <requires lib="libadwaita" version="1.0"/>
   <template class="UnityDash" parent="AstalWindow">
     <property name="namespace">unity-dash</property>
-    <property name="layer">overlay</property>
+    <property name="layer">top</property>
     <property name="anchor">top|bottom|left|right</property>
     <property name="exclusivity">normal</property>
     <property name="keymode">on-demand</property>
