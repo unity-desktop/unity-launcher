@@ -8,18 +8,10 @@ unity-launcher {
 
 
 unity-launcher button.action {
-  background-color: var(--accent-bg-color);
-  color: var(--accent-fg-color);
   border-radius: 6px;
   padding: 0;
   min-width: 0;
   min-height: 0;
-}
-unity-launcher button.action:hover {
-  background-color: shade(var(--accent-bg-color), 0.95);
-}
-unity-launcher button.action:active {
-  background-color: shade(var(--accent-bg-color), 0.88);
 }
 
 /* No drop-target ring while reordering. libadwaita paints an inset accent ring
