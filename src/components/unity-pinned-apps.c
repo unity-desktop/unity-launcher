@@ -1,7 +1,5 @@
 #include "components/unity-pinned-apps.h"
 
-#include "unity-launcher-defs.h"
-
 /**
  * unity_pinned_apps_toggle:
  * @settings: the launcher GSettings.
@@ -31,4 +29,24 @@ unity_pinned_apps_toggle (GSettings *settings, const gchar *app_id)
 
   g_settings_set_strv (settings, UNITY_LAUNCHER_KEY_PINNED_APPS,
                        (const gchar *const *) next->pdata);
+}
+
+/**
+ * unity_pinned_apps_contains:
+ * @settings: the launcher GSettings.
+ * @app_id: the desktop id to test.
+ *
+ * Returns: %TRUE if @app_id is in the launcher's pinned-apps list.
+ */
+gboolean
+unity_pinned_apps_contains (GSettings *settings, const gchar *app_id)
+{
+  if (app_id == NULL || *app_id == '\0')
+    return FALSE;
+
+  g_auto (GStrv) ids = g_settings_get_strv (settings, UNITY_LAUNCHER_KEY_PINNED_APPS);
+  for (gchar **p = ids; p && *p; p++)
+    if (g_strcmp0 (*p, app_id) == 0)
+      return TRUE;
+  return FALSE;
 }

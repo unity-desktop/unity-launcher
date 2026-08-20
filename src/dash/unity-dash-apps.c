@@ -4,7 +4,8 @@
 
 #include "components/unity-dash-tile.h"
 #include "dash/unity-dash-grid-layout.h"
-#include "unity-launcher-defs.h"
+#include "unity-app-catalog.h"
+#include "unity-settings.h"
 
 struct _UnityDashApps
 {
@@ -20,27 +21,17 @@ struct _UnityDashApps
  *
  * The dash's browse page.
  *
- * Shows every installed application as a square grid. It emits
- * UnityDashApps::activated when a tile launches an app, so the popup can
- * close.
+ * Shows every installed application as a square grid. A launched tile dismisses
+ * the dash through the dash.close action.
  */
 G_DEFINE_FINAL_TYPE (UnityDashApps, unity_dash_apps, ADW_TYPE_BIN)
 
-enum { SIG_ACTIVATED, N_SIGNALS };
-static guint signals[N_SIGNALS];
-
-static void
-on_tile_activated (UnityDashTile *tile, gpointer user_data)
-{
-  (void) tile;
-  g_signal_emit (UNITY_DASH_APPS (user_data), signals[SIG_ACTIVATED], 0);
-}
-
+/* The tile keeps itself square (see unity-dash-tile.c) and dismisses the dash
+ * itself through dash.close; here we only bind its icon size to the setting. */
 static GtkWidget *
 make_tile (UnityDashApps *self, AstalAppsApplication *app)
 {
   GtkWidget *tile = unity_dash_tile_new (app);
-  g_signal_connect (tile, "activated", G_CALLBACK (on_tile_activated), self);
   g_settings_bind (self->settings, UNITY_LAUNCHER_KEY_DASH_ICON_SIZE,
                    tile, "icon-size", G_SETTINGS_BIND_GET);
   return tile;
@@ -61,9 +52,9 @@ fill (UnityDashApps *self)
   GList *apps = g_list_sort_with_data (astal_apps_apps_get_list (self->catalog),
                                        cmp_by_name, NULL);
 
-  GtkWidget *c;
-  while ((c = gtk_widget_get_first_child (GTK_WIDGET (self->cells))) != NULL)
-    gtk_box_remove (self->cells, c);
+  GtkWidget *child;
+  while ((child = gtk_widget_get_first_child (GTK_WIDGET (self->cells))) != NULL)
+    gtk_box_remove (self->cells, child);
 
   for (GList *l = apps; l != NULL; l = l->next)
     gtk_box_append (self->cells, make_tile (self, l->data));
@@ -111,9 +102,6 @@ unity_dash_apps_reset (UnityDashApps *self)
 static void
 unity_dash_apps_dispose (GObject *object)
 {
-  UnityDashApps *self = UNITY_DASH_APPS (object);
-  g_clear_object (&self->catalog);
-  g_clear_object (&self->settings);
   gtk_widget_dispose_template (GTK_WIDGET (object), UNITY_TYPE_DASH_APPS);
   G_OBJECT_CLASS (unity_dash_apps_parent_class)->dispose (object);
 }
@@ -125,10 +113,6 @@ unity_dash_apps_class_init (UnityDashAppsClass *klass)
 
   G_OBJECT_CLASS (klass)->dispose = unity_dash_apps_dispose;
 
-  signals[SIG_ACTIVATED] = g_signal_new (
-    "activated", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST,
-    0, NULL, NULL, NULL, G_TYPE_NONE, 0);
-
   gtk_widget_class_set_template_from_resource (
     widget_class, "/org/unity/launcher/dash/unity-dash-apps.ui");
   gtk_widget_class_bind_template_child (widget_class, UnityDashApps, cells);
@@ -137,8 +121,8 @@ unity_dash_apps_class_init (UnityDashAppsClass *klass)
 static void
 unity_dash_apps_init (UnityDashApps *self)
 {
-  self->catalog  = astal_apps_apps_new ();
-  self->settings = g_settings_new (UNITY_LAUNCHER_SCHEMA);
+  self->catalog  = unity_app_catalog_get_default ();
+  self->settings = unity_settings_get_default ();
 
   gtk_widget_init_template (GTK_WIDGET (self));
   gtk_widget_set_layout_manager (GTK_WIDGET (self->cells), unity_dash_grid_layout_new ());

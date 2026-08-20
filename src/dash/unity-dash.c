@@ -4,7 +4,9 @@
 #include "dash/unity-dash-search.h"
 #include "dash/unity-dash-search-controller.h"
 #include "components/unity-dismiss.h"
-#include "unity-launcher-defs.h"
+#include "unity-settings.h"
+
+#define UNITY_LAUNCHER_KEY_DASH_MAXIMIZED "dash-maximized"
 
 #define POPOVER_NUM 2
 #define POPOVER_DEN 3
@@ -138,11 +140,14 @@ on_toggle_maximized_action (GtkWidget *widget, const char *name, GVariant *param
   self->suppress_dismiss = FALSE;
 }
 
+/* Any descendant that launches something activates dash.close to dismiss the
+ * dash. GTK walks up the widget tree to find the action installed here, so no
+ * chain of re-emitted "activated" signals is needed. */
 static void
-on_page_activated (GtkWidget *page, gpointer user_data)
+on_dash_close_action (GtkWidget *widget, const char *name, GVariant *param)
 {
-  (void) page;
-  unity_dash_close (UNITY_DASH (user_data));
+  (void) name; (void) param;
+  unity_dash_close (UNITY_DASH (widget));
 }
 
 static void
@@ -255,7 +260,6 @@ unity_dash_dispose (GObject *object)
 {
   UnityDash *self = UNITY_DASH (object);
   g_clear_object (&self->search);
-  g_clear_object (&self->settings);
   G_OBJECT_CLASS (unity_dash_parent_class)->dispose (object);
   gtk_widget_dispose_template (GTK_WIDGET (object), UNITY_TYPE_DASH);
 }
@@ -285,12 +289,15 @@ unity_dash_class_init (UnityDashClass *klass)
   gtk_widget_class_install_action (widget_class, "window.close",            NULL, on_close_action);
   gtk_widget_class_install_action (widget_class, "window.minimize",         NULL, on_minimize_action);
   gtk_widget_class_install_action (widget_class, "window.toggle-maximized", NULL, on_toggle_maximized_action);
+
+  /* Descendants launch through this to dismiss the dash. */
+  gtk_widget_class_install_action (widget_class, "dash.close", NULL, on_dash_close_action);
 }
 
 static void
 unity_dash_init (UnityDash *self)
 {
-  self->settings = g_settings_new (UNITY_LAUNCHER_SCHEMA);
+  self->settings = unity_settings_get_default ();
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
@@ -300,9 +307,6 @@ unity_dash_init (UnityDash *self)
     self->entry, self->stack, self->search_page);
 
   g_signal_connect (self, "map", G_CALLBACK (on_grid_map), NULL);
-
-  g_signal_connect (self->apps_page,   "activated", G_CALLBACK (on_page_activated), self);
-  g_signal_connect (self->search_page, "activated", G_CALLBACK (on_page_activated), self);
 
   unity_dismiss_attach (GTK_WIDGET (self), GTK_WIDGET (self->area),
                         GTK_WIDGET (self->panel),

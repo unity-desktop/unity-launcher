@@ -15,6 +15,7 @@ unity_launcher_sources = files(
   'unity-app-catalog.c',
   'unity-app-entry.c',
   'unity-app-list.c',
+  'unity-settings.c',
 )
 
 subdir('components')
@@ -39,7 +40,6 @@ unity_launcher_lib = library(
 
 install_headers(
   'unity-launcher.h',
-  'unity-launcher-defs.h',
   'dash/unity-dash.h',
   subdir: 'unity-launcher',
 )
