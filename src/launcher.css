@@ -72,25 +72,19 @@ unity-dash .labels > .heading {
   font-weight: normal;
 }
 
-/* Dash cells: browse-page tiles (dashtile) and search-page flowbox children.
- * Both are flat with no chrome — only a rounded hover/selected wash. */
-dashtile,
-unity-dash flowboxchild {
+/* Dash tiles (dashtile): the browse grid and the search matches. Flat, with a
+ * rounded hover/active wash and a keyboard focus ring. */
+dashtile {
   outline: none;
   border: none;
   box-shadow: none;
   background: none;
-}
-dashtile {
-  padding: 6px;
-  border-radius: 6px;
+  padding: 9px;
+  border-radius: 9px;
 }
 dashtile:hover  { background-color: alpha(currentColor, 0.10); }
 dashtile:active { background-color: alpha(currentColor, 0.22); }
-
-unity-dash flowboxchild { padding: 0; }
-unity-dash flowboxchild:hover { background: none; }
-unity-dash flowboxchild:selected {
-  background-color: alpha(currentColor, 0.20);
-  border-radius: 6px;
+dashtile:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -1px;
 }

@@ -25,14 +25,8 @@ struct _UnityDashSearch
  * A matching-apps group plus a group per search provider. It owns the search
  * orchestration and the parent drives it. When a query matches nothing it shows
  * an inline "no results" placeholder rather than a separate page.
- *
- * It emits UnityDashSearch::activated when a tile or a result is launched, so
- * the parent should close.
  */
 G_DEFINE_FINAL_TYPE (UnityDashSearch, unity_dash_search, ADW_TYPE_BIN)
-
-enum { SIG_ACTIVATED, N_SIGNALS };
-static guint signals[N_SIGNALS];
 
 static void
 update_placeholder (UnityDashSearch *self)
@@ -40,15 +34,6 @@ update_placeholder (UnityDashSearch *self)
   gboolean nothing = !gtk_widget_get_visible (GTK_WIDGET (self->apps)) &&
                      self->provider_groups->len == 0;
   gtk_widget_set_visible (GTK_WIDGET (self->placeholder), nothing);
-}
-
-/* Both the app grid and the provider rows report launches the same way, so we
- * re-emit our own activation for the parent to close the dash. */
-static void
-on_child_activated (GtkWidget *child, gpointer user_data)
-{
-  (void) child;
-  g_signal_emit (UNITY_DASH_SEARCH (user_data), signals[SIG_ACTIVATED], 0);
 }
 
 static void
@@ -59,7 +44,6 @@ on_provider_results (UnitySearch *search, UnitySearchProvider *provider,
   UnityDashSearch *self = user_data;
 
   GtkWidget *rows = unity_search_result_rows_new (provider, results);
-  g_signal_connect_object (rows, "activated", G_CALLBACK (on_child_activated), self, 0);
 
   gtk_box_append (self->groups, rows);
   g_ptr_array_add (self->provider_groups, rows);
@@ -167,10 +151,6 @@ unity_dash_search_class_init (UnityDashSearchClass *klass)
 
   G_OBJECT_CLASS (klass)->dispose = unity_dash_search_dispose;
 
-  signals[SIG_ACTIVATED] = g_signal_new (
-    "activated", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST,
-    0, NULL, NULL, NULL, G_TYPE_NONE, 0);
-
   gtk_widget_class_set_template_from_resource (
     widget_class, "/org/unity/launcher/dash/unity-dash-search.ui");
   gtk_widget_class_bind_template_child (widget_class, UnityDashSearch, groups);
@@ -188,7 +168,6 @@ unity_dash_search_init (UnityDashSearch *self)
   /* The app matches sit above the placeholder; provider rows append after it. */
   self->apps = UNITY_SEARCH_APP_RESULTS (unity_search_app_results_new ());
   gtk_widget_set_visible (GTK_WIDGET (self->apps), FALSE);
-  g_signal_connect (self->apps, "activated", G_CALLBACK (on_child_activated), self);
   gtk_box_prepend (self->groups, GTK_WIDGET (self->apps));
 
   g_signal_connect_object (self->search, "provider-results",
