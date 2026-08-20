@@ -1,3 +1,23 @@
+/* unity-search-provider.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/search/unity-search-provider.h"
 
 #include <gio/gdesktopappinfo.h>
@@ -21,15 +41,6 @@ struct _UnitySearchProvider
   GStrv            last_ids;        /* its result ids, for GetSubsearchResultSet */
 };
 
-/**
- * UnitySearchProvider:
- *
- * One installed SearchProvider2, such as Calculator, Files or Settings.
- *
- * A UnitySearchProvider wraps a GDBusProxy to the provider's bus name and
- * object path. It also holds the provider application's GDesktopAppInfo, used
- * for the section header shown above its results.
- */
 G_DEFINE_FINAL_TYPE (UnitySearchProvider, unity_search_provider, G_TYPE_OBJECT)
 
 static void
@@ -68,8 +79,8 @@ provider_new (const gchar *bus_name, const gchar *object_path,
   self->default_enabled = default_enabled;
   self->app_info        = g_steal_pointer (&app_info);
 
-  /* Don't D-Bus-activate the provider's service just to build the proxy — it
-   * still auto-starts on the first query. Matches GNOME Shell's AutoStart. */
+  /* Do not D-Bus-activate the provider's service just to build the proxy. It
+   * still auto-starts on the first query. */
   g_dbus_proxy_new_for_bus (
     G_BUS_TYPE_SESSION,
     G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES | G_DBUS_PROXY_FLAGS_DO_NOT_CONNECT_SIGNALS
@@ -155,20 +166,6 @@ compare_providers (gconstpointer a, gconstpointer b, gpointer user_data)
   return ia - ib;
 }
 
-/**
- * unity_search_provider_discover:
- *
- * Discovers the Version=2 search providers installed on the system, honouring
- * the user's org.gnome.desktop.search-providers settings.
- *
- * The search-providers directories under the user data dir and $XDG_DATA_DIRS
- * are scanned; a provider in the user directory shadows a system one with the
- * same filename. The result is then filtered by the disable-external kill
- * switch and the disabled/enabled lists, and ordered by sort-order.
- *
- * Returns: (transfer full) (element-type UnitySearchProvider): a list of
- *   providers. Unref each element and free the list.
- */
 GList *
 unity_search_provider_discover (void)
 {
@@ -198,7 +195,7 @@ unity_search_provider_discover (void)
   g_auto (GStrv) enabled    = g_settings_get_strv (settings, "enabled");
   g_auto (GStrv) sort_order = g_settings_get_strv (settings, "sort-order");
 
-  /* A default-enabled provider shows unless the user disabled it; a
+  /* A default-enabled provider shows unless the user disabled it. A
    * default-disabled one shows only if the user enabled it. */
   GList *kept = NULL;
   for (GList *l = out; l != NULL; l = l->next)
@@ -217,14 +214,6 @@ unity_search_provider_discover (void)
   return g_list_sort_with_data (kept, compare_providers, sort_order);
 }
 
-/**
- * unity_search_provider_get_name:
- * @self: a UnitySearchProvider.
- *
- * Gets the display name of the provider application.
- *
- * Returns: (transfer none) (nullable): the display name, or %NULL.
- */
 const gchar *
 unity_search_provider_get_name (UnitySearchProvider *self)
 {
@@ -232,14 +221,6 @@ unity_search_provider_get_name (UnitySearchProvider *self)
   return self->app_info ? g_app_info_get_display_name (G_APP_INFO (self->app_info)) : NULL;
 }
 
-/**
- * unity_search_provider_get_gicon:
- * @self: a UnitySearchProvider.
- *
- * Gets the icon of the provider application.
- *
- * Returns: (transfer none) (nullable): the icon, or %NULL.
- */
 GIcon *
 unity_search_provider_get_gicon (UnitySearchProvider *self)
 {
@@ -302,10 +283,8 @@ on_get_metas (GObject *source, GAsyncResult *res, gpointer user_data)
       g_autoptr (GVariant) v_icon  = g_variant_lookup_value (meta, "icon",          NULL);
       g_autoptr (GVariant) v_gicon = g_variant_lookup_value (meta, "gicon",         NULL);
 
-      /* Skip the provider's "open in <app>" companion result (e.g. the
-       * calculator's open-in-calculator-<query>). It just launches the app, which
-       * the primary rows already convey through their external-link cue, so a
-       * dedicated card is redundant. */
+      /* Skip the provider's "open-in-" companion result. It only launches the
+       * app, which the primary rows already convey. */
       const gchar *id_str = v_id ? g_variant_get_string (v_id, NULL) : NULL;
       if (id_str != NULL && g_str_has_prefix (id_str, "open-in-"))
         {
@@ -380,22 +359,8 @@ on_get_initial (GObject *source, GAsyncResult *res, gpointer user_data)
                      g_task_get_cancellable (task), on_get_metas, task);
 }
 
-/**
- * unity_search_provider_query_async:
- * @self: a UnitySearchProvider.
- * @terms: the search terms.
- * @limit: the maximum number of results to return.
- * @cancellable: (nullable): a GCancellable, or %NULL.
- * @callback: the callback to invoke when the query completes.
- * @user_data: data to pass to @callback.
- *
- * Queries the provider asynchronously.
- *
- * When the new terms extend the last completed query, this calls
- * GetSubsearchResultSet with the previous result ids (the optimization providers
- * implement); otherwise GetInitialResultSet. Either chains into GetResultMetas.
- * When the proxy is not connected yet the query completes empty with no error.
- */
+/* If the new terms extend the last query, refine with GetSubsearchResultSet.
+ * If not, use GetInitialResultSet. Both chain into GetResultMetas. */
 static gboolean
 terms_extend (GStrv prev, const gchar *const *next)
 {
@@ -416,7 +381,8 @@ unity_search_provider_query_async (UnitySearchProvider *self,
 {
   g_return_if_fail (UNITY_IS_SEARCH_PROVIDER (self));
 
-  GTask *task = g_task_new (self, cancellable, callback, user_data);
+  g_autoptr (GTask) task = g_task_new (self, cancellable, callback, user_data);
+  g_task_set_source_tag (task, unity_search_provider_query_async);
   QueryData *q = g_new0 (QueryData, 1);
   q->terms = g_strdupv ((gchar **) terms);
   q->limit = limit;
@@ -426,7 +392,6 @@ unity_search_provider_query_async (UnitySearchProvider *self,
     {
       g_task_return_pointer (task, g_ptr_array_new_with_free_func (g_object_unref),
                              (GDestroyNotify) g_ptr_array_unref);
-      g_object_unref (task);
       return;
     }
 
@@ -435,8 +400,8 @@ unity_search_provider_query_async (UnitySearchProvider *self,
   for (const gchar *const *t = terms; t && *t; t++)
     g_variant_builder_add (&tb, "s", *t);
 
-  /* Only refine when the previous query actually had results; subsearching an
-   * empty set would hide matches the longer query could still find. */
+  /* Only refine when the previous query had results. Subsearching an empty set
+   * would hide matches the longer query could still find. */
   if (self->last_ids != NULL && self->last_ids[0] != NULL
       && terms_extend (self->last_terms, terms))
     {
@@ -448,29 +413,17 @@ unity_search_provider_query_async (UnitySearchProvider *self,
       g_dbus_proxy_call (self->proxy, "GetSubsearchResultSet",
                          g_variant_new ("(asas)", &pb, &tb),
                          G_DBUS_CALL_FLAGS_NONE, -1,
-                         cancellable, on_get_initial, task);
+                         cancellable, on_get_initial, g_steal_pointer (&task));
     }
   else
     {
       g_dbus_proxy_call (self->proxy, "GetInitialResultSet",
                          g_variant_new ("(as)", &tb),
                          G_DBUS_CALL_FLAGS_NONE, -1,
-                         cancellable, on_get_initial, task);
+                         cancellable, on_get_initial, g_steal_pointer (&task));
     }
 }
 
-/**
- * unity_search_provider_query_finish:
- * @self: a UnitySearchProvider.
- * @result: the GAsyncResult passed to the callback.
- * @error: (nullable): return location for an error, or %NULL.
- *
- * Finishes an asynchronous query started with
- * unity_search_provider_query_async().
- *
- * Returns: (transfer full) (element-type UnitySearchResult): the results, which
- *   may be empty, or %NULL on error.
- */
 GPtrArray *
 unity_search_provider_query_finish (UnitySearchProvider *self,
                                           GAsyncResult *result, GError **error)
@@ -479,15 +432,6 @@ unity_search_provider_query_finish (UnitySearchProvider *self,
   return g_task_propagate_pointer (G_TASK (result), error);
 }
 
-/**
- * unity_search_provider_activate_result:
- * @self: a UnitySearchProvider.
- * @id: the identifier of the result to activate.
- * @terms: the terms that produced the result.
- * @timestamp: an activation timestamp.
- *
- * Activates a result by calling ActivateResult on the provider.
- */
 void
 unity_search_provider_activate_result (UnitySearchProvider *self,
                                              const gchar              *id,
@@ -508,15 +452,6 @@ unity_search_provider_activate_result (UnitySearchProvider *self,
                      G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
 }
 
-/**
- * unity_search_provider_launch_search:
- * @self: a UnitySearchProvider.
- * @terms: the terms to hand to the provider's app.
- * @timestamp: an activation timestamp.
- *
- * Calls LaunchSearch on the provider, opening its app on the full results for
- * @terms. This is the "open in <app>" action behind a result group's header.
- */
 void
 unity_search_provider_launch_search (UnitySearchProvider *self,
                                      const gchar *const       *terms,
@@ -536,13 +471,6 @@ unity_search_provider_launch_search (UnitySearchProvider *self,
                      G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
 }
 
-/**
- * unity_search_provider_reset:
- * @self: a UnitySearchProvider.
- *
- * Forgets the last query so the next one starts fresh (GetInitialResultSet
- * rather than GetSubsearchResultSet). Call when the search is cleared.
- */
 void
 unity_search_provider_reset (UnitySearchProvider *self)
 {

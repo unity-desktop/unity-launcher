@@ -1,4 +1,4 @@
-/* unity-dash-tile.h
+/* unity-search-result-row.h
  *
  * Copyright 2026 Muqtadir
  *
@@ -20,32 +20,30 @@
 
 #pragma once
 
-#include <astal-apps.h>
+#include <adwaita.h>
 
-#include "components/unity-tile.h"
+#include "dash/search/unity-search-result.h"
 
 G_BEGIN_DECLS
 
-#define UNITY_LAUNCHER_KEY_DASH_ICON_SIZE "dash-icon-size"
-
-#define UNITY_TYPE_DASH_TILE (unity_dash_tile_get_type ())
+#define UNITY_TYPE_SEARCH_RESULT_ROW (unity_search_result_row_get_type ())
 
 /**
- * UnityDashTile:
+ * UnitySearchResultRow:
  *
- * A dash cell that shows the icon and label for one #AstalAppsApplication.
+ * One provider search result shown as an activatable #AdwActionRow.
  */
-G_DECLARE_FINAL_TYPE (UnityDashTile, unity_dash_tile,
-                      UNITY, DASH_TILE, UnityTile)
+G_DECLARE_FINAL_TYPE (UnitySearchResultRow, unity_search_result_row,
+                      UNITY, SEARCH_RESULT_ROW, AdwActionRow)
 
 /**
- * unity_dash_tile_new:
- * @app: the #AstalAppsApplication the tile shows.
+ * unity_search_result_row_new:
+ * @result: the #UnitySearchResult the row shows.
  *
- * Makes a new dash tile for @app.
+ * Makes a new result row for @result.
  *
- * Returns: (transfer full): a new dash tile as a #GtkWidget.
+ * Returns: (transfer full): a new result row as a #GtkWidget.
  */
-GtkWidget *unity_dash_tile_new (AstalAppsApplication *app);
+GtkWidget *unity_search_result_row_new (UnitySearchResult *result);
 
 G_END_DECLS

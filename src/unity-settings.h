@@ -1,4 +1,4 @@
-/* unity-dash-tile.h
+/* unity-settings.h
  *
  * Copyright 2026 Muqtadir
  *
@@ -20,32 +20,18 @@
 
 #pragma once
 
-#include <astal-apps.h>
-
-#include "components/unity-tile.h"
+#include <gio/gio.h>
 
 G_BEGIN_DECLS
 
-#define UNITY_LAUNCHER_KEY_DASH_ICON_SIZE "dash-icon-size"
-
-#define UNITY_TYPE_DASH_TILE (unity_dash_tile_get_type ())
-
 /**
- * UnityDashTile:
+ * unity_settings_get_default:
  *
- * A dash cell that shows the icon and label for one #AstalAppsApplication.
+ * Gets the shared #GSettings for "org.unity.launcher". It is made the first time
+ * it is asked for, then reused.
+ *
+ * Returns: (transfer none): the shared #GSettings.
  */
-G_DECLARE_FINAL_TYPE (UnityDashTile, unity_dash_tile,
-                      UNITY, DASH_TILE, UnityTile)
-
-/**
- * unity_dash_tile_new:
- * @app: the #AstalAppsApplication the tile shows.
- *
- * Makes a new dash tile for @app.
- *
- * Returns: (transfer full): a new dash tile as a #GtkWidget.
- */
-GtkWidget *unity_dash_tile_new (AstalAppsApplication *app);
+GSettings *unity_settings_get_default (void);
 
 G_END_DECLS

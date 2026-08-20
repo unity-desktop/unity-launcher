@@ -2,6 +2,7 @@ unity_launcher_sources += files(
   'unity-tile.c',
   'unity-launcher-tile.c',
   'unity-dash-tile.c',
+  'unity-search-result-row.c',
   'unity-dismiss.c',
   'unity-pinned-apps.c',
   'unity-desktop-actions.c',

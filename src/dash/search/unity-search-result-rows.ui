@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.0"/>
+  <template class="UnitySearchResultRows" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <property name="spacing">6</property>
+    <child>
+      <object class="AdwPreferencesGroup" id="group">
+        <property name="header-suffix">
+          <object class="GtkButton" id="launch">
+            <property name="valign">center</property>
+            <signal name="clicked" handler="on_launch_clicked"/>
+            <style>
+              <class name="flat"/>
+              <class name="body"/>
+            </style>
+          </object>
+        </property>
+      </object>
+    </child>
+  </template>
+</interface>

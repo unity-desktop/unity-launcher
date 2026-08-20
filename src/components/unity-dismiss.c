@@ -1,3 +1,23 @@
+/* unity-dismiss.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "components/unity-dismiss.h"
 
 #include <gdk/gdkkeysyms.h>
@@ -10,8 +30,8 @@ typedef struct
   GtkWidget       *content;
 } DismissCtx;
 
-/* Escape, clicking outside, and focus loss are light dismissals: minimize,
- * keeping state. Ctrl+W and Alt+F4 are explicit closes: minimize + reset. */
+/* Escape does a light dismiss and keeps state. Ctrl+W and Alt+F4 are explicit
+ * closes. */
 static gboolean
 on_key_pressed (GtkEventControllerKey *key, guint keyval, guint keycode,
                 GdkModifierType state, gpointer user_data)
@@ -70,21 +90,6 @@ on_focus_leave (GtkEventControllerFocus *focus, gpointer user_data)
   ctx->on_minimize (ctx->data);
 }
 
-/**
- * unity_dismiss_attach:
- * @surface: the layer-shell surface to make dismissable
- * @area: the full-surface widget that catches clicks outside @content
- * @content: the content widget clicks inside must not dismiss
- * @on_minimize: callback for a light dismissal (keep state)
- * @on_close: callback for an explicit close (reset state)
- * @user_data: data passed to the callbacks
- *
- * Gives a layer-shell surface GtkPopover-like dismissal, which layer-shell does
- * not provide itself. Escape, clicking outside @content (caught on the
- * full-surface @area in the capture phase), or keyboard focus leaving the
- * surface invoke @on_minimize; Ctrl+W, Alt+F4 or a window close-request invoke
- * @on_close.
- */
 void
 unity_dismiss_attach (GtkWidget *surface, GtkWidget *area, GtkWidget *content,
                       UnityDismissFunc on_minimize, UnityDismissFunc on_close,

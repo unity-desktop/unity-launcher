@@ -1,15 +1,25 @@
+/* unity-pinned-apps.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "components/unity-pinned-apps.h"
 
-#include "unity-launcher-defs.h"
-
-/**
- * unity_pinned_apps_toggle:
- * @settings: the launcher GSettings.
- * @app_id: the desktop id to toggle.
- *
- * Toggles @app_id in the launcher's pinned-apps list and writes it back to
- * @settings. The id is removed if already present, otherwise it is appended.
- */
 void
 unity_pinned_apps_toggle (GSettings *settings, const gchar *app_id)
 {
@@ -31,4 +41,17 @@ unity_pinned_apps_toggle (GSettings *settings, const gchar *app_id)
 
   g_settings_set_strv (settings, UNITY_LAUNCHER_KEY_PINNED_APPS,
                        (const gchar *const *) next->pdata);
+}
+
+gboolean
+unity_pinned_apps_contains (GSettings *settings, const gchar *app_id)
+{
+  if (app_id == NULL || *app_id == '\0')
+    return FALSE;
+
+  g_auto (GStrv) ids = g_settings_get_strv (settings, UNITY_LAUNCHER_KEY_PINNED_APPS);
+  for (gchar **p = ids; p && *p; p++)
+    if (g_strcmp0 (*p, app_id) == 0)
+      return TRUE;
+  return FALSE;
 }

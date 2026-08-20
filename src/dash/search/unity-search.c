@@ -1,3 +1,23 @@
+/* unity-search.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/search/unity-search.h"
 
 #define RESULTS_PER_PROVIDER 5
@@ -10,28 +30,11 @@ struct _UnitySearch
   GCancellable *cancellable;
 };
 
-/**
- * UnitySearch:
- *
- * Aggregates the installed search providers.
- *
- * A query fans out to every provider. Results stream back per provider through
- * the #UnitySearch::provider-results signal as each one replies, so the UI
- * fills incrementally. Starting a new query, or clearing it, cancels any query
- * still in flight.
- */
 G_DEFINE_FINAL_TYPE (UnitySearch, unity_search, G_TYPE_OBJECT)
 
 enum { SIG_PROVIDER_RESULTS, N_SIGNALS };
 static guint signals[N_SIGNALS];
 
-/**
- * unity_search_get_default:
- *
- * Gets the shared search aggregator.
- *
- * Returns: (transfer none): the singleton UnitySearch.
- */
 UnitySearch *
 unity_search_get_default (void)
 {
@@ -71,18 +74,6 @@ split_terms (const gchar *query)
   return (GStrv) g_ptr_array_free (g_steal_pointer (&terms), FALSE);
 }
 
-/**
- * unity_search_query:
- * @self: a UnitySearch.
- * @query: the search text, split into terms on whitespace.
- * @limit: the maximum number of results per provider, or 0 for the default.
- *
- * Runs a search across every provider.
- *
- * Results arrive through the #UnitySearch::provider-results signal, one
- * emission per provider that replies. An empty or %NULL query cancels the
- * current search and emits nothing.
- */
 void
 unity_search_query (UnitySearch *self, const gchar *query, guint limit)
 {
@@ -124,14 +115,7 @@ unity_search_class_init (UnitySearchClass *klass)
 {
   G_OBJECT_CLASS (klass)->dispose = unity_search_dispose;
 
-  /**
-   * UnitySearch::provider-results:
-   * @self: the aggregator.
-   * @provider: the provider that produced the results.
-   * @results: (element-type UnitySearchResult): the non-empty result batch.
-   *
-   * Emitted when a provider replies to the current query.
-   */
+  /* provider-results (provider, results): emitted when a provider replies. */
   signals[SIG_PROVIDER_RESULTS] = g_signal_new (
     "provider-results", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL,
     G_TYPE_NONE, 2, UNITY_TYPE_SEARCH_PROVIDER, G_TYPE_PTR_ARRAY);

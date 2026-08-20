@@ -1,10 +1,30 @@
+/* unity-dash-tile.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "components/unity-dash-tile.h"
 
 #include <gio/gdesktopappinfo.h>
 
-#include "unity-launcher-defs.h"
-#include "components/unity-pinned-apps.h"
 #include "components/unity-desktop-actions.h"
+#include "components/unity-pinned-apps.h"
+#include "unity-settings.h"
 
 struct _UnityDashTile
 {
@@ -12,17 +32,9 @@ struct _UnityDashTile
 
   AstalAppsApplication *app;
   GtkLabel             *label;
+  GSettings            *settings;
 };
 
-/**
- * UnityDashTile:
- *
- * An dash cell showing the icon and label for one AstalApps.Application.
- *
- * A primary click launches the app and emits UnityDashTile::activated, on
- * which the grid closes the popup. A secondary click offers Open, the app's
- * .desktop actions, and Pin to Launcher.
- */
 G_DEFINE_FINAL_TYPE (UnityDashTile, unity_dash_tile, UNITY_TYPE_TILE)
 
 typedef enum
@@ -31,16 +43,13 @@ typedef enum
 } UnityDashTileProperty;
 static GParamSpec *properties[PROP_APPLICATION + 1];
 
-enum { SIG_ACTIVATED, N_SIGNALS };
-static guint signals[N_SIGNALS];
-
 static void
 on_launch (GSimpleAction *action, GVariant *param, gpointer user_data)
 {
   (void) action; (void) param;
   UnityDashTile *self = user_data;
   astal_apps_application_launch (self->app);
-  g_signal_emit (self, signals[SIG_ACTIVATED], 0);
+  gtk_widget_activate_action (GTK_WIDGET (self), "dash.close", NULL);
 }
 
 static void
@@ -51,7 +60,7 @@ on_launch_action (GSimpleAction *action, GVariant *param, gpointer user_data)
   GDesktopAppInfo *info = astal_apps_application_get_app (self->app);
   if (info != NULL)
     g_desktop_app_info_launch_action (info, g_variant_get_string (param, NULL), NULL);
-  g_signal_emit (self, signals[SIG_ACTIVATED], 0);
+  gtk_widget_activate_action (GTK_WIDGET (self), "dash.close", NULL);
 }
 
 static void
@@ -59,8 +68,7 @@ on_pin_launcher (GSimpleAction *action, GVariant *param, gpointer user_data)
 {
   (void) action; (void) param;
   UnityDashTile *self = user_data;
-  g_autoptr (GSettings) settings = g_settings_new (UNITY_LAUNCHER_SCHEMA);
-  unity_pinned_apps_toggle (settings, astal_apps_application_get_entry (self->app));
+  unity_pinned_apps_toggle (self->settings, astal_apps_application_get_entry (self->app));
 }
 
 static void
@@ -93,8 +101,12 @@ unity_dash_tile_populate_menu (UnityTile *tile, GMenu *menu)
   unity_desktop_actions_append (menu, info, "app.launch-action");
 
   {
+    const gchar *entry = self->app ? astal_apps_application_get_entry (self->app) : NULL;
+    gboolean     pinned = unity_pinned_apps_contains (self->settings, entry);
+
     g_autoptr (GMenu) section = g_menu_new ();
-    g_menu_append (section, "Pin to Launcher", "app.pin-launcher");
+    g_menu_append (section, pinned ? "Unpin from Launcher" : "Pin to Launcher",
+                  "app.pin-launcher");
     g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
   }
 }
@@ -107,7 +119,7 @@ on_clicked (GtkButton *button, gpointer user_data)
   if (self->app == NULL)
     return;
   astal_apps_application_launch (self->app);
-  g_signal_emit (self, signals[SIG_ACTIVATED], 0);
+  gtk_widget_activate_action (GTK_WIDGET (self), "dash.close", NULL);
 }
 
 static void
@@ -134,14 +146,6 @@ bind_application (UnityDashTile *self, AstalAppsApplication *app)
   gtk_label_set_text (self->label, name != NULL ? name : "");
 }
 
-/**
- * unity_dash_tile_new:
- * @app: the application the tile represents.
- *
- * Creates a new dash tile for @app.
- *
- * Returns: (transfer full): a new UnityDashTile
- */
 GtkWidget *
 unity_dash_tile_new (AstalAppsApplication *app)
 {
@@ -183,23 +187,20 @@ unity_dash_tile_class_init (UnityDashTileClass *klass)
     G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
   g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 
-  signals[SIG_ACTIVATED] = g_signal_new (
-    "activated", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST,
-    0, NULL, NULL, NULL, G_TYPE_NONE, 0);
-
   gtk_widget_class_set_css_name (GTK_WIDGET_CLASS (klass), "dashtile");
 }
 
 static void
 unity_dash_tile_init (UnityDashTile *self)
 {
+  self->settings = unity_settings_get_default ();
+
   self->label = GTK_LABEL (gtk_label_new (NULL));
   gtk_label_set_ellipsize (self->label, PANGO_ELLIPSIZE_END);
-  gtk_label_set_lines (self->label, 2);
-  gtk_label_set_wrap (self->label, TRUE);
-  gtk_label_set_justify (self->label, GTK_JUSTIFY_CENTER);
-  gtk_label_set_max_width_chars (self->label, 12);
+  gtk_label_set_wrap (self->label, FALSE);
+  gtk_label_set_max_width_chars (self->label, 18);
   gtk_widget_set_halign (GTK_WIDGET (self->label), GTK_ALIGN_CENTER);
+  gtk_widget_set_margin_top (GTK_WIDGET (self->label), 2);
   gtk_widget_add_css_class (GTK_WIDGET (self->label), "body");
   gtk_box_append (unity_tile_get_box (UNITY_TILE (self)),
                   GTK_WIDGET (self->label));

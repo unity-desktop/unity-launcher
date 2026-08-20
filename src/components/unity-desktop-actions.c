@@ -1,15 +1,25 @@
+/* unity-desktop-actions.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "components/unity-desktop-actions.h"
 
-/**
- * unity_desktop_actions_append:
- * @menu: the menu to extend.
- * @info: the application whose desktop actions are listed.
- * @action_name: the action each item targets, for example "tile.launch-action".
- *
- * Appends a menu section listing the .desktop actions of @info, each item
- * targeting @action_name with the action id as its target value. Does nothing
- * if @info has no actions.
- */
 void
 unity_desktop_actions_append (GMenu           *menu,
                               GDesktopAppInfo *info,

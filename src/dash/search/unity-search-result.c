@@ -1,3 +1,23 @@
+/* unity-search-result.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/search/unity-search-result.h"
 
 #include "dash/search/unity-search-provider.h"
@@ -15,32 +35,8 @@ struct _UnitySearchResult
   GStrv                     terms;
 };
 
-/**
- * UnitySearchResult:
- *
- * One result from a SearchProvider2 GetResultMetas entry.
- *
- * A UnitySearchResult holds the id, display name, optional description and
- * optional icon of a single match. It keeps a reference to the
- * #UnitySearchProvider that produced it, along with the query terms, so the
- * result can be activated later.
- */
 G_DEFINE_FINAL_TYPE (UnitySearchResult, unity_search_result, G_TYPE_OBJECT)
 
-/**
- * unity_search_result_new:
- * @provider: the provider that produced the result.
- * @id: the provider-local result identifier.
- * @name: the display name.
- * @description: (nullable): a longer description, or %NULL.
- * @clipboard_text: (nullable): text to copy for this result, or %NULL.
- * @gicon: (nullable): an icon for the result, or %NULL.
- * @terms: the query terms that produced the result.
- *
- * Creates a new search result.
- *
- * Returns: (transfer full): a new UnitySearchResult.
- */
 UnitySearchResult *
 unity_search_result_new (UnitySearchProvider *provider,
                                const gchar              *id,
@@ -61,14 +57,6 @@ unity_search_result_new (UnitySearchProvider *provider,
   return self;
 }
 
-/**
- * unity_search_result_get_id:
- * @self: a UnitySearchResult.
- *
- * Gets the provider-local identifier of the result.
- *
- * Returns: (transfer none): the result id.
- */
 const gchar *
 unity_search_result_get_id (UnitySearchResult *self)
 {
@@ -76,14 +64,6 @@ unity_search_result_get_id (UnitySearchResult *self)
   return self->id;
 }
 
-/**
- * unity_search_result_get_name:
- * @self: a UnitySearchResult.
- *
- * Gets the display name of the result.
- *
- * Returns: (transfer none): the display name.
- */
 const gchar *
 unity_search_result_get_name (UnitySearchResult *self)
 {
@@ -91,14 +71,6 @@ unity_search_result_get_name (UnitySearchResult *self)
   return self->name;
 }
 
-/**
- * unity_search_result_get_description:
- * @self: a UnitySearchResult.
- *
- * Gets the longer description of the result.
- *
- * Returns: (transfer none) (nullable): the description, or %NULL.
- */
 const gchar *
 unity_search_result_get_description (UnitySearchResult *self)
 {
@@ -106,15 +78,6 @@ unity_search_result_get_description (UnitySearchResult *self)
   return self->description;
 }
 
-/**
- * unity_search_result_get_clipboard_text:
- * @self: a UnitySearchResult.
- *
- * Gets the text to place on the clipboard for the result, when the provider
- * offers one (e.g. a calculator answer).
- *
- * Returns: (transfer none) (nullable): the clipboard text, or %NULL.
- */
 const gchar *
 unity_search_result_get_clipboard_text (UnitySearchResult *self)
 {
@@ -122,14 +85,6 @@ unity_search_result_get_clipboard_text (UnitySearchResult *self)
   return self->clipboard_text;
 }
 
-/**
- * unity_search_result_get_gicon:
- * @self: a UnitySearchResult.
- *
- * Gets the icon of the result.
- *
- * Returns: (transfer none) (nullable): the icon, or %NULL.
- */
 GIcon *
 unity_search_result_get_gicon (UnitySearchResult *self)
 {
@@ -137,14 +92,6 @@ unity_search_result_get_gicon (UnitySearchResult *self)
   return self->gicon;
 }
 
-/**
- * unity_search_result_get_terms:
- * @self: a UnitySearchResult.
- *
- * Gets the query terms that produced the result.
- *
- * Returns: (transfer none): the terms.
- */
 const gchar *const *
 unity_search_result_get_terms (UnitySearchResult *self)
 {
@@ -152,14 +99,6 @@ unity_search_result_get_terms (UnitySearchResult *self)
   return (const gchar *const *) self->terms;
 }
 
-/**
- * unity_search_result_activate:
- * @self: a UnitySearchResult.
- * @timestamp: an activation timestamp.
- *
- * Activates the result through its provider, replaying the query terms that
- * produced it.
- */
 void
 unity_search_result_activate (UnitySearchResult *self, guint32 timestamp)
 {

@@ -1,12 +1,33 @@
+/* unity-app-list.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "unity-app-list.h"
 
 #include <string.h>
 
 #include <astal-apps.h>
+#include <astal-wlr.h>
 #include <gio/gdesktopappinfo.h>
 #include <gtk/gtk.h>
 
-#include <astal-wlr.h>
+#include "unity-app-catalog.h"
 
 struct _UnityAppList
 {
@@ -23,24 +44,8 @@ struct _UnityAppList
 
 static void list_model_iface_init (GListModelInterface *iface);
 
-/**
- * UnityAppList:
- *
- * A #GListModel of #UnityAppEntry merging pinned apps with running windows.
- *
- * The list combines the pinned .desktop ids with the running windows from the
- * toplevel service into one deduped, ordered model. Pinned apps come first, in
- * pin order, then running but unpinned apps in compositor order. Each entry's
- * toplevels are filtered live by app-id, backed by a #GtkFilterListModel over
- * the shared toplevel service.
- *
- * A raw app-id (a pinned .desktop id, or a compositor app-id or wm class from a
- * window) is resolved to a canonical .desktop id through AstalApps, so "Code",
- * "code.desktop" and a StartupWMClass all collapse to one entry. Resolutions are
- * memoised and dropped when AstalApps reloads its catalog. Each canonical id
- * maps to one cached #UnityAppEntry, kept alive across rebuilds so pointer
- * identity stays stable for the diff.
- */
+/* Raw app ids (desktop id, compositor app id, or wm class) resolve to one
+ * canonical desktop id, so variants of the same app collapse to one entry. */
 G_DEFINE_FINAL_TYPE_WITH_CODE (UnityAppList, unity_app_list, G_TYPE_OBJECT,
                                G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, list_model_iface_init))
 
@@ -264,37 +269,51 @@ sync_to_desired (UnityAppList *self)
 }
 
 static void
-invalidate_app_filters (UnityAppList *self)
+invalidate_entry_filter (UnityAppList *self, const gchar *canonical)
 {
-  GHashTableIter iter;
-  gpointer       entry_p;
+  if (canonical == NULL)
+    return;
 
-  g_hash_table_iter_init (&iter, self->cache);
-  while (g_hash_table_iter_next (&iter, NULL, &entry_p))
-    {
-      GListModel *toplevels = unity_app_entry_get_toplevels (entry_p);
-      if (!GTK_IS_FILTER_LIST_MODEL (toplevels))
-        continue;
-      GtkFilter *filter = gtk_filter_list_model_get_filter (GTK_FILTER_LIST_MODEL (toplevels));
-      if (filter != NULL)
-        gtk_filter_changed (filter, GTK_FILTER_CHANGE_DIFFERENT);
-    }
+  UnityAppEntry *entry = g_hash_table_lookup (self->cache, canonical);
+  if (entry == NULL)
+    return;
+
+  GListModel *toplevels = unity_app_entry_get_toplevels (entry);
+  if (!GTK_IS_FILTER_LIST_MODEL (toplevels))
+    return;
+
+  GtkFilter *filter = gtk_filter_list_model_get_filter (GTK_FILTER_LIST_MODEL (toplevels));
+  if (filter != NULL)
+    gtk_filter_changed (filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
 static void
 on_toplevel_app_id_notify (AstalWlrToplevel *toplevel, GParamSpec *pspec,
                            UnityAppList *self)
 {
-  (void) toplevel; (void) pspec;
+  (void) pspec;
+  const gchar *new_canonical = canonical_id_for (self, astal_wlr_toplevel_get_app_id (toplevel));
+  const gchar *old_canonical = g_object_get_data (G_OBJECT (toplevel), "unity-canonical");
+
   sync_to_desired (self);
-  invalidate_app_filters (self);
+
+  /* Only the entries the window left and joined need re-filtering, not every one. */
+  if (g_strcmp0 (old_canonical, new_canonical) != 0)
+    {
+      invalidate_entry_filter (self, old_canonical);
+      invalidate_entry_filter (self, new_canonical);
+      g_object_set_data_full (G_OBJECT (toplevel), "unity-canonical",
+                              g_strdup (new_canonical), g_free);
+    }
 }
 
 static void
 hook_toplevel (UnityAppList *self, AstalWlrToplevel *tl)
 {
+  const gchar *canonical = canonical_id_for (self, astal_wlr_toplevel_get_app_id (tl));
+  g_object_set_data_full (G_OBJECT (tl), "unity-canonical", g_strdup (canonical), g_free);
   g_signal_connect_object (tl, "notify::app-id",
-                           G_CALLBACK (on_toplevel_app_id_notify), self, 0);
+                           G_CALLBACK (on_toplevel_app_id_notify), self, G_CONNECT_DEFAULT);
 }
 
 static void
@@ -329,7 +348,6 @@ unity_app_list_dispose (GObject *object)
   g_clear_pointer (&self->entries,      g_ptr_array_unref);
   g_clear_pointer (&self->cache,        g_hash_table_unref);
   g_clear_pointer (&self->id_canonical, g_hash_table_unref);
-  g_clear_object  (&self->catalog);
   g_clear_object  (&self->toplevels);
 
   G_OBJECT_CLASS (unity_app_list_parent_class)->dispose (object);
@@ -361,9 +379,9 @@ unity_app_list_init (UnityAppList *self)
   self->cache        = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_canonical = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 
-  self->catalog = astal_apps_apps_new ();
+  self->catalog = unity_app_catalog_get_default ();
   g_signal_connect_object (self->catalog, "notify::list",
-                           G_CALLBACK (on_catalog_changed), self, 0);
+                           G_CALLBACK (on_catalog_changed), self, G_CONNECT_DEFAULT);
 
   self->toplevels = g_object_ref (G_LIST_MODEL (astal_wlr_toplevels_get_default ()));
   guint n = g_list_model_get_n_items (self->toplevels);
@@ -373,31 +391,17 @@ unity_app_list_init (UnityAppList *self)
       hook_toplevel (self, tl);
     }
   g_signal_connect_object (self->toplevels, "items-changed",
-                           G_CALLBACK (on_toplevels_items_changed), self, 0);
+                           G_CALLBACK (on_toplevels_items_changed), self, G_CONNECT_DEFAULT);
 
   sync_to_desired (self);
 }
 
-/**
- * unity_app_list_new:
- *
- * Creates a new app list tracking pinned apps and running windows.
- *
- * Returns: (transfer full): a new #UnityAppList
- */
 UnityAppList *
 unity_app_list_new (void)
 {
   return g_object_new (UNITY_TYPE_APP_LIST, NULL);
 }
 
-/**
- * unity_app_list_set_pinned_app_ids:
- * @self: a #UnityAppList
- * @app_ids: (nullable) (array zero-terminated=1): the pinned .desktop ids, in order
- *
- * Sets the pinned apps and resyncs the list.
- */
 void
 unity_app_list_set_pinned_app_ids (UnityAppList *self, const gchar *const *app_ids)
 {
@@ -408,15 +412,6 @@ unity_app_list_set_pinned_app_ids (UnityAppList *self, const gchar *const *app_i
   sync_to_desired (self);
 }
 
-/**
- * unity_app_list_get_entry:
- * @self: a #UnityAppList
- * @app_id: a raw app-id, canonicalised internally
- *
- * Looks up the cached entry for an app-id.
- *
- * Returns: (transfer none) (nullable): the #UnityAppEntry, or %NULL if absent
- */
 UnityAppEntry *
 unity_app_list_get_entry (UnityAppList *self, const gchar *app_id)
 {

@@ -1,4 +1,4 @@
-/* unity-dash-tile.h
+/* unity-app-catalog.c
  *
  * Copyright 2026 Muqtadir
  *
@@ -18,34 +18,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#pragma once
+#include "unity-app-catalog.h"
 
-#include <astal-apps.h>
-
-#include "components/unity-tile.h"
-
-G_BEGIN_DECLS
-
-#define UNITY_LAUNCHER_KEY_DASH_ICON_SIZE "dash-icon-size"
-
-#define UNITY_TYPE_DASH_TILE (unity_dash_tile_get_type ())
-
-/**
- * UnityDashTile:
- *
- * A dash cell that shows the icon and label for one #AstalAppsApplication.
- */
-G_DECLARE_FINAL_TYPE (UnityDashTile, unity_dash_tile,
-                      UNITY, DASH_TILE, UnityTile)
-
-/**
- * unity_dash_tile_new:
- * @app: the #AstalAppsApplication the tile shows.
- *
- * Makes a new dash tile for @app.
- *
- * Returns: (transfer full): a new dash tile as a #GtkWidget.
- */
-GtkWidget *unity_dash_tile_new (AstalAppsApplication *app);
-
-G_END_DECLS
+AstalAppsApps *
+unity_app_catalog_get_default (void)
+{
+  static AstalAppsApps *instance;
+  if (g_once_init_enter_pointer (&instance))
+    g_once_init_leave_pointer (&instance, astal_apps_apps_new ());
+  return instance;
+}

@@ -10,7 +10,6 @@
         <property name="vexpand">true</property>
         <property name="child">
           <object class="GtkBox" id="cells">
-            <property name="orientation">vertical</property>
             <property name="hexpand">true</property>
             <property name="valign">start</property>
             <property name="margin-start">12</property>

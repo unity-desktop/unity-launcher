@@ -1,3 +1,23 @@
+/* unity-tile.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "components/unity-tile.h"
 
 #define ICON_SIZE_MIN     16
@@ -13,20 +33,6 @@ typedef struct
   GtkPositionType menu_position;
 } UnityTilePrivate;
 
-/**
- * UnityTile:
- *
- * Abstract scaffolding for a launcher or dash tile.
- *
- * A #UnityTile is a flat button holding a centred icon plus whatever the
- * subclass adds to the box (a running dot, a label). The icon is sized by the
- * #UnityTile:icon-size property. A secondary click raises a context menu that
- * the subclass fills through the populate_menu vfunc.
- *
- * The base knows no app model. Subclasses bind their own data source (a
- * UnityAppEntry, an AstalApps.Application) and drive the tile with
- * unity_tile_set_gicon(), unity_tile_set_running() and unity_tile_set_active().
- */
 G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (UnityTile, unity_tile, GTK_TYPE_BUTTON)
 
 typedef enum
@@ -75,15 +81,6 @@ on_secondary_pressed (GtkGestureClick *gesture, gint n_press, gdouble x, gdouble
   present_menu (UNITY_TILE (user_data));
 }
 
-/**
- * unity_tile_get_box:
- * @self: a #UnityTile
- *
- * Gets the tile's content box, the vertical box holding the icon. Subclasses
- * append their own widgets to it.
- *
- * Returns: (transfer none): the tile's #GtkBox
- */
 GtkBox *
 unity_tile_get_box (UnityTile *self)
 {
@@ -93,14 +90,6 @@ unity_tile_get_box (UnityTile *self)
   return priv->box;
 }
 
-/**
- * unity_tile_get_icon_size:
- * @self: a #UnityTile
- *
- * Gets the pixel size of the tile icon.
- *
- * Returns: the icon size, in pixels
- */
 gint
 unity_tile_get_icon_size (UnityTile *self)
 {
@@ -110,13 +99,6 @@ unity_tile_get_icon_size (UnityTile *self)
   return priv->icon_size;
 }
 
-/**
- * unity_tile_set_gicon:
- * @self: a #UnityTile
- * @icon: (nullable): the icon to show, or %NULL for a fallback
- *
- * Sets the tile icon. When @icon is %NULL a generic executable icon is shown.
- */
 void
 unity_tile_set_gicon (UnityTile *self, GIcon *icon)
 {
@@ -128,13 +110,6 @@ unity_tile_set_gicon (UnityTile *self, GIcon *icon)
     gtk_image_set_from_icon_name (priv->image, "application-x-executable-symbolic");
 }
 
-/**
- * unity_tile_set_running:
- * @self: a #UnityTile
- * @running: whether the tile's app is running
- *
- * Toggles the "running" style class on the tile.
- */
 void
 unity_tile_set_running (UnityTile *self, gboolean running)
 {
@@ -143,13 +118,6 @@ unity_tile_set_running (UnityTile *self, gboolean running)
   else         gtk_widget_remove_css_class (GTK_WIDGET (self), "running");
 }
 
-/**
- * unity_tile_set_active:
- * @self: a #UnityTile
- * @active: whether the tile's app is the active window
- *
- * Toggles the "active" style class on the tile.
- */
 void
 unity_tile_set_active (UnityTile *self, gboolean active)
 {
@@ -158,13 +126,6 @@ unity_tile_set_active (UnityTile *self, gboolean active)
   else        gtk_widget_remove_css_class (GTK_WIDGET (self), "active");
 }
 
-/**
- * unity_tile_set_menu_position:
- * @self: a #UnityTile
- * @position: where the context menu should open relative to the tile
- *
- * Sets the side on which the secondary-click context menu opens.
- */
 void
 unity_tile_set_menu_position (UnityTile *self, GtkPositionType position)
 {
