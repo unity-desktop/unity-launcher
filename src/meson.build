@@ -12,6 +12,7 @@ unity_launcher_deps = [
 
 unity_launcher_sources = files(
   'unity-launcher.c',
+  'unity-app-catalog.c',
   'unity-app-entry.c',
   'unity-app-list.c',
 )
