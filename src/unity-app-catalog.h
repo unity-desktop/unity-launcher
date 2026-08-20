@@ -24,6 +24,14 @@
 
 G_BEGIN_DECLS
 
+/**
+ * unity_app_catalog_get_default:
+ *
+ * Gets the shared app catalog. It is parsed the first time it is asked for, then
+ * reused. The launcher, the dash browse grid, and the search all share it.
+ *
+ * Returns: (transfer none): the shared #AstalAppsApps.
+ */
 AstalAppsApps *unity_app_catalog_get_default (void);
 
 G_END_DECLS

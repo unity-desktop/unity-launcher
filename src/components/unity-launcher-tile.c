@@ -1,14 +1,35 @@
+/* unity-launcher-tile.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "components/unity-launcher-tile.h"
+
+#include <math.h>
 
 #include <adwaita.h>
 #include <astal-wlr.h>
 #include <gdk/wayland/gdkwayland.h>
-#include <math.h>
 #include <gio/gdesktopappinfo.h>
 #include <graphene.h>
 
-#include "unity-launcher.h"
 #include "components/unity-desktop-actions.h"
+#include "unity-launcher.h"
 
 #define UNITY_LAUNCHER_ACTION_SPREAD_APP "wayfire.spread-app"
 
@@ -34,17 +55,6 @@ typedef enum
 } UnityLauncherTileProperty;
 static GParamSpec *properties[PROP_ENTRY + 1];
 
-/**
- * UnityLauncherTile:
- *
- * A launcher dock tile bound to a #UnityAppEntry.
- *
- * Built on the shared #UnityTile base, an app tile shows the app icon with a
- * running dot. A primary click launches, raises or minimizes the app, or
- * spreads its windows when two or more are open. A pinned tile acts as a drag
- * source for reordering. Its context menu adds pin and quit items to the base's
- * Open and .desktop actions.
- */
 G_DEFINE_FINAL_TYPE (UnityLauncherTile, unity_launcher_tile, UNITY_TYPE_TILE)
 
 static void
@@ -103,8 +113,8 @@ push_rectangle_hints (UnityLauncherTile *self)
   if (wsurface == NULL)
     return;
 
-  int w = gtk_widget_get_width  (widget);
-  int h = gtk_widget_get_height (widget);
+  gint w = gtk_widget_get_width  (widget);
+  gint h = gtk_widget_get_height (widget);
   if (w <= 0 || h <= 0)
     return;
 
@@ -113,8 +123,8 @@ push_rectangle_hints (UnityLauncherTile *self)
   if (!gtk_widget_compute_point (widget, GTK_WIDGET (root), &origin, &mapped))
     return;
 
-  int x = (int) lroundf (mapped.x);
-  int y = (int) lroundf (mapped.y);
+  gint x = (int) lroundf (mapped.x);
+  gint y = (int) lroundf (mapped.y);
 
   for (guint i = 0; i < n; i++)
     {
@@ -369,9 +379,9 @@ install_dnd (UnityLauncherTile *self)
 {
   GtkDragSource *drag_source = gtk_drag_source_new ();
   gtk_drag_source_set_actions (drag_source, GDK_ACTION_MOVE);
-  g_signal_connect_object (drag_source, "prepare",    G_CALLBACK (on_drag_prepare), self, 0);
-  g_signal_connect_object (drag_source, "drag-begin", G_CALLBACK (on_drag_begin),   self, 0);
-  g_signal_connect_object (drag_source, "drag-end",   G_CALLBACK (on_drag_end),     self, 0);
+  g_signal_connect_object (drag_source, "prepare",    G_CALLBACK (on_drag_prepare), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (drag_source, "drag-begin", G_CALLBACK (on_drag_begin),   self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (drag_source, "drag-end",   G_CALLBACK (on_drag_end),     self, G_CONNECT_DEFAULT);
   gtk_widget_add_controller (GTK_WIDGET (self), GTK_EVENT_CONTROLLER (drag_source));
   group_with_click_gesture (GTK_WIDGET (self), GTK_GESTURE (drag_source));
 }
@@ -413,43 +423,27 @@ construct_entry_bindings (UnityLauncherTile *self, UnityAppEntry *entry)
   self->entry = g_object_ref (entry);
 
   g_signal_connect_object (entry, "notify::app-info",
-                           G_CALLBACK (on_entry_app_info_notify),  self, 0);
+                           G_CALLBACK (on_entry_app_info_notify),  self, G_CONNECT_DEFAULT);
   g_signal_connect_object (entry, "notify::running",
-                           G_CALLBACK (on_entry_running_notify),   self, 0);
+                           G_CALLBACK (on_entry_running_notify),   self, G_CONNECT_DEFAULT);
   g_signal_connect_object (entry, "notify::activated",
-                           G_CALLBACK (on_entry_activated_notify), self, 0);
+                           G_CALLBACK (on_entry_activated_notify), self, G_CONNECT_DEFAULT);
 
   GListModel *toplevels = unity_app_entry_get_toplevels (entry);
   g_signal_connect_object (toplevels, "items-changed",
-                           G_CALLBACK (on_toplevels_items_changed), self, 0);
+                           G_CALLBACK (on_toplevels_items_changed), self, G_CONNECT_DEFAULT);
 
   sync_image   (self);
   sync_running (self);
   sync_active  (self);
 }
 
-/**
- * unity_launcher_tile_new:
- * @entry: the #UnityAppEntry the tile represents
- *
- * Creates a new app tile bound to @entry.
- *
- * Returns: (transfer full): a new #UnityLauncherTile, as a #GtkWidget
- */
 GtkWidget *
 unity_launcher_tile_new (UnityAppEntry *entry)
 {
   return g_object_new (UNITY_TYPE_LAUNCHER_TILE, "entry", entry, NULL);
 }
 
-/**
- * unity_launcher_tile_get_app_id:
- * @self: a #UnityLauncherTile
- *
- * Gets the application id of the tile's entry.
- *
- * Returns: (nullable): the app id, or %NULL
- */
 const gchar *
 unity_launcher_tile_get_app_id (UnityLauncherTile *self)
 {
@@ -457,14 +451,6 @@ unity_launcher_tile_get_app_id (UnityLauncherTile *self)
   return self->entry ? unity_app_entry_get_app_id (self->entry) : NULL;
 }
 
-/**
- * unity_launcher_tile_get_pinned:
- * @self: a #UnityLauncherTile
- *
- * Gets whether the tile's entry is pinned to the launcher.
- *
- * Returns: %TRUE if the entry is pinned
- */
 gboolean
 unity_launcher_tile_get_pinned (UnityLauncherTile *self)
 {

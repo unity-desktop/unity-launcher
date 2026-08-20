@@ -1,9 +1,29 @@
+/* unity-dash.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/unity-dash.h"
 
-#include "dash/unity-dash-apps.h"
-#include "dash/unity-dash-search.h"
-#include "dash/unity-dash-search-controller.h"
 #include "components/unity-dismiss.h"
+#include "dash/unity-dash-apps.h"
+#include "dash/unity-dash-search-controller.h"
+#include "dash/unity-dash-search.h"
 #include "unity-settings.h"
 
 #define UNITY_LAUNCHER_KEY_DASH_MAXIMIZED "dash-maximized"
@@ -29,22 +49,8 @@ struct _UnityDash
   gboolean         suppress_dismiss;  /* guards the hide/re-present in the maximize toggle */
 };
 
-/**
- * UnityDash:
- *
- * The application grid window.
- *
- * A layer-shell overlay that fills the work area so a click outside the panel
- * dismisses it. A GtkPopover cannot span the output or take a fraction of it.
- * The floating panel is a header bar (centred search and window controls) over
- * an AdwViewStack of two page widgets: apps for browsing and search for results.
- * The search page shows an inline placeholder when a query matches nothing.
- *
- * It opens either as a popover (two thirds of the monitor at the top-left
- * corner) or fullscreen. The mode persists through the launcher's
- * dash-maximized setting. The grid dismisses on Escape, on a click or a
- * focus loss outside the panel, or when a page launches something.
- */
+/* A layer-shell overlay is used instead of a GtkPopover, because a popover
+ * cannot span the whole output. */
 G_DEFINE_FINAL_TYPE (UnityDash, unity_dash, ASTAL_TYPE_WINDOW)
 
 static void
@@ -79,11 +85,8 @@ apply_layout (UnityDash *self)
                                  geo.height * POPOVER_NUM / POPOVER_DEN);
 }
 
-/* Mirror the fullscreen state onto the real window's maximized state so the
- * header bar's native maximize button shows the right icon (maximize vs restore).
- * Only effective while the window is unmapped: gtk_window_maximize() then sets
- * priv->maximized directly and it sticks — the layer-shell surface never gets a
- * competing maximized state back from the compositor. */
+/* Mirror the fullscreen state onto the window's maximized state so the header
+ * bar's maximize button shows the right icon. This only works while unmapped. */
 static void
 sync_window_maximized (UnityDash *self)
 {
@@ -102,25 +105,24 @@ present_dash (UnityDash *self)
   gtk_window_present (GTK_WINDOW (self));
 }
 
-/* Overrides of GtkWindow's built-in window.* actions, which the AdwHeaderBar
- * native controls target. Installed in class_init, so the stock close, minimize
- * and maximize buttons drive the dash's own behaviour. */
+/* Overrides of GtkWindow's built-in window.* actions that the header bar's
+ * native controls target. */
 static void
-on_close_action (GtkWidget *widget, const char *name, GVariant *param)
+on_close_action (GtkWidget *widget, const gchar *name, GVariant *param)
 {
   (void) name; (void) param;
   unity_dash_close (UNITY_DASH (widget));
 }
 
 static void
-on_minimize_action (GtkWidget *widget, const char *name, GVariant *param)
+on_minimize_action (GtkWidget *widget, const gchar *name, GVariant *param)
 {
   (void) name; (void) param;
   gtk_widget_set_visible (widget, FALSE);
 }
 
 static void
-on_toggle_maximized_action (GtkWidget *widget, const char *name, GVariant *param)
+on_toggle_maximized_action (GtkWidget *widget, const gchar *name, GVariant *param)
 {
   (void) name; (void) param;
   UnityDash *self = UNITY_DASH (widget);
@@ -130,9 +132,8 @@ on_toggle_maximized_action (GtkWidget *widget, const char *name, GVariant *param
   g_settings_set_boolean (self->settings, UNITY_LAUNCHER_KEY_DASH_MAXIMIZED,
                           self->fullscreen);
 
-  /* The native maximize icon only tracks priv->maximized, which is settable
-   * only while unmapped. Briefly hide and re-present so the button rebuilds with
-   * the right icon; suppress_dismiss stops the hide's focus-leave from minimizing. */
+  /* The maximize icon tracks a state settable only while unmapped. Hide and
+   * re-present so the button rebuilds, and suppress the hide's dismiss. */
   self->suppress_dismiss = TRUE;
   gtk_widget_set_visible (widget, FALSE);
   present_dash (self);
@@ -140,11 +141,10 @@ on_toggle_maximized_action (GtkWidget *widget, const char *name, GVariant *param
   self->suppress_dismiss = FALSE;
 }
 
-/* Any descendant that launches something activates dash.close to dismiss the
- * dash. GTK walks up the widget tree to find the action installed here, so no
- * chain of re-emitted "activated" signals is needed. */
+/* A launching descendant activates dash.close to dismiss the dash. GTK walks up
+ * the widget tree to find the action installed here. */
 static void
-on_dash_close_action (GtkWidget *widget, const char *name, GVariant *param)
+on_dash_close_action (GtkWidget *widget, const gchar *name, GVariant *param)
 {
   (void) name; (void) param;
   unity_dash_close (UNITY_DASH (widget));
@@ -175,28 +175,12 @@ on_dismiss_close (gpointer user_data)
   unity_dash_close (UNITY_DASH (user_data));
 }
 
-/**
- * unity_dash_new:
- * @app: the application the window belongs to.
- *
- * Creates a new application grid window.
- *
- * Returns: (transfer full): a new UnityDash
- */
 GtkWidget *
 unity_dash_new (GtkApplication *app)
 {
   return g_object_new (UNITY_TYPE_DASH, "application", app, NULL);
 }
 
-/**
- * unity_dash_reset:
- * @self: a UnityDash
- *
- * Resets the grid for a fresh open. Applies the remembered popover or
- * fullscreen mode, clears the query and results back to the apps page, and
- * focuses the search entry.
- */
 void
 unity_dash_reset (UnityDash *self)
 {
@@ -211,13 +195,6 @@ unity_dash_reset (UnityDash *self)
   gtk_widget_grab_focus (GTK_WIDGET (self->entry));
 }
 
-/**
- * unity_dash_close:
- * @self: a UnityDash
- *
- * Hides the window and discards its state, so the next open starts fresh. Does
- * nothing if the window is already hidden.
- */
 void
 unity_dash_close (UnityDash *self)
 {
@@ -228,15 +205,6 @@ unity_dash_close (UnityDash *self)
   gtk_widget_set_visible (GTK_WIDGET (self), FALSE);
 }
 
-/**
- * unity_dash_toggle:
- * @self: a UnityDash
- *
- * Toggles the grid for the Super key or the launcher icon. A visible grid is
- * minimized, keeping its state. A hidden grid is presented, showing whatever
- * state is held: fresh if the last hide was a close, restored if it was a
- * minimize.
- */
 void
 unity_dash_toggle (UnityDash *self)
 {

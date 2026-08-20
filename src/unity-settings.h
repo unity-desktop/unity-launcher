@@ -24,6 +24,14 @@
 
 G_BEGIN_DECLS
 
+/**
+ * unity_settings_get_default:
+ *
+ * Gets the shared #GSettings for "org.unity.launcher". It is made the first time
+ * it is asked for, then reused.
+ *
+ * Returns: (transfer none): the shared #GSettings.
+ */
 GSettings *unity_settings_get_default (void);
 
 G_END_DECLS

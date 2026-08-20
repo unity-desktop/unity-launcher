@@ -1,8 +1,28 @@
+/* unity-dash-search.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/unity-dash-search.h"
 
-#include "dash/search/unity-search.h"
-#include "dash/search/unity-search-result-rows.h"
 #include "dash/search/unity-search-app-results.h"
+#include "dash/search/unity-search-result-rows.h"
+#include "dash/search/unity-search.h"
 
 struct _UnityDashSearch
 {
@@ -17,15 +37,6 @@ struct _UnityDashSearch
   GPtrArray             *provider_groups;
 };
 
-/**
- * UnityDashSearch:
- *
- * The dash's search page.
- *
- * A matching-apps group plus a group per search provider. It owns the search
- * orchestration and the parent drives it. When a query matches nothing it shows
- * an inline "no results" placeholder rather than a separate page.
- */
 G_DEFINE_FINAL_TYPE (UnityDashSearch, unity_dash_search, ADW_TYPE_BIN)
 
 static void
@@ -58,15 +69,6 @@ clear_provider_groups (UnityDashSearch *self)
   g_ptr_array_set_size (self->provider_groups, 0);
 }
 
-/**
- * unity_dash_search_run:
- * @self: a UnityDashSearch
- * @query: the text to search for.
- *
- * Runs @query. Matching apps are filled synchronously and search providers are
- * queried asynchronously. The top match is highlighted while the entry keeps
- * focus. The "no results" placeholder shows if nothing matches.
- */
 void
 unity_dash_search_run (UnityDashSearch *self, const gchar *query)
 {
@@ -78,13 +80,6 @@ unity_dash_search_run (UnityDashSearch *self, const gchar *query)
   unity_search_query (self->search, query, 0);
 }
 
-/**
- * unity_dash_search_activate_selected:
- * @self: a UnityDashSearch
- *
- * Launches the highlighted default match. Called for Enter while the entry is
- * focused.
- */
 void
 unity_dash_search_activate_selected (UnityDashSearch *self)
 {
@@ -92,13 +87,6 @@ unity_dash_search_activate_selected (UnityDashSearch *self)
   unity_search_app_results_activate_selected (self->apps);
 }
 
-/**
- * unity_dash_search_focus_results:
- * @self: a UnityDashSearch
- *
- * Moves keyboard focus into the results. Called for Down from the entry, so the
- * arrow keys then navigate the results natively.
- */
 void
 unity_dash_search_focus_results (UnityDashSearch *self)
 {
@@ -106,12 +94,6 @@ unity_dash_search_focus_results (UnityDashSearch *self)
   unity_search_app_results_focus (self->apps);
 }
 
-/**
- * unity_dash_search_reset:
- * @self: a UnityDashSearch
- *
- * Cancels any in-flight query and clears the results.
- */
 void
 unity_dash_search_reset (UnityDashSearch *self)
 {
@@ -122,13 +104,6 @@ unity_dash_search_reset (UnityDashSearch *self)
   gtk_widget_set_visible (GTK_WIDGET (self->placeholder), FALSE);
 }
 
-/**
- * unity_dash_search_new:
- *
- * Creates a new search page for the dash.
- *
- * Returns: (transfer full): a new UnityDashSearch
- */
 GtkWidget *
 unity_dash_search_new (void)
 {
@@ -165,11 +140,11 @@ unity_dash_search_init (UnityDashSearch *self)
 
   gtk_widget_init_template (GTK_WIDGET (self));
 
-  /* The app matches sit above the placeholder; provider rows append after it. */
+  /* The app matches sit above the placeholder. Provider rows append after it. */
   self->apps = UNITY_SEARCH_APP_RESULTS (unity_search_app_results_new ());
   gtk_widget_set_visible (GTK_WIDGET (self->apps), FALSE);
   gtk_box_prepend (self->groups, GTK_WIDGET (self->apps));
 
   g_signal_connect_object (self->search, "provider-results",
-                           G_CALLBACK (on_provider_results), self, 0);
+                           G_CALLBACK (on_provider_results), self, G_CONNECT_DEFAULT);
 }

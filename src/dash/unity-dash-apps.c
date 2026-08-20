@@ -1,3 +1,23 @@
+/* unity-dash-apps.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/unity-dash-apps.h"
 
 #include <astal-apps.h>
@@ -16,18 +36,10 @@ struct _UnityDashApps
   GtkBox        *cells;
 };
 
-/**
- * UnityDashApps:
- *
- * The dash's browse page.
- *
- * Shows every installed application as a square grid. A launched tile dismisses
- * the dash through the dash.close action.
- */
 G_DEFINE_FINAL_TYPE (UnityDashApps, unity_dash_apps, ADW_TYPE_BIN)
 
-/* The tile keeps itself square (see unity-dash-tile.c) and dismisses the dash
- * itself through dash.close; here we only bind its icon size to the setting. */
+/* The tile keeps itself square and dismisses the dash on its own. Here we only
+ * bind its icon size to the setting. */
 static GtkWidget *
 make_tile (UnityDashApps *self, AstalAppsApplication *app)
 {
@@ -68,25 +80,12 @@ on_catalog_changed (AstalAppsApps *catalog, GParamSpec *pspec, gpointer user_dat
   fill (user_data);
 }
 
-/**
- * unity_dash_apps_new:
- *
- * Creates a new browse page for the dash.
- *
- * Returns: (transfer full): a new UnityDashApps
- */
 GtkWidget *
 unity_dash_apps_new (void)
 {
   return g_object_new (UNITY_TYPE_DASH_APPS, NULL);
 }
 
-/**
- * unity_dash_apps_reset:
- * @self: a UnityDashApps
- *
- * Scrolls the grid back to the top, for a fresh (non-restored) open.
- */
 void
 unity_dash_apps_reset (UnityDashApps *self)
 {
@@ -128,6 +127,6 @@ unity_dash_apps_init (UnityDashApps *self)
   gtk_widget_set_layout_manager (GTK_WIDGET (self->cells), unity_dash_grid_layout_new ());
 
   g_signal_connect_object (self->catalog, "notify::list",
-                           G_CALLBACK (on_catalog_changed), self, 0);
+                           G_CALLBACK (on_catalog_changed), self, G_CONNECT_DEFAULT);
   fill (self);
 }

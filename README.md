@@ -1,20 +1,20 @@
 ## unity-launcher
 
-library for the Unity launcher and dash for use in unity-shell.
+A library for the Unity launcher and dash, for use in unity-shell.
 
-It builds on [Astal](https://github.com/unity-shell/astal) and exposes two windows:
+It builds on [Astal](https://github.com/unity-desktop/astal) and gives you two windows.
 
-- **`UnityLauncher`**: the vertical panel. Shows pinned and running apps, tracks Wayland toplevels, and launches or focuses them on click.
-- **`UnityDash`**: the full-screen overlay. Browses installed apps in a grid and filters them as you type.
+- **`UnityLauncher`**: the vertical panel. It shows pinned and running apps, tracks Wayland toplevels, and launches or focuses them on click.
+- **`UnityDash`**: the overlay. It browses installed apps in a grid and filters them as you type.
 
-The app list is modelled separately so the launcher and dash share from common source:
+The app list is modelled on its own, so the launcher and the dash share one source.
 
-- **`UnityAppList`**: a `GListModel` of `UnityAppEntry` objects, seeded from pinned app ids and updated as toplevels come and go.
-- **`UnityAppEntry`**: one application — its `GAppInfo`, its toplevels, and its pinned / running / activated state.
+- **`UnityAppList`**: a `GListModel` of `UnityAppEntry` objects. It starts from the pinned app ids and updates as toplevels come and go.
+- **`UnityAppEntry`**: one application. It holds the `GAppInfo`, the toplevels, and the pinned, running, and activated state.
 
 ### build
 
-install the deps:
+Install the dependencies.
 
 - `gtk4` (>= 4.22)
 - `libadwaita-1` (>= 1.8)
@@ -26,6 +26,8 @@ install the deps:
 - `astal-apps-0.1`
 - `astal-wlr-0.1`
 - `meson`
+
+Then build and install.
 
 ```sh
 meson setup build

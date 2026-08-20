@@ -1,10 +1,30 @@
+/* unity-dash-tile.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "components/unity-dash-tile.h"
 
 #include <gio/gdesktopappinfo.h>
 
-#include "unity-settings.h"
-#include "components/unity-pinned-apps.h"
 #include "components/unity-desktop-actions.h"
+#include "components/unity-pinned-apps.h"
+#include "unity-settings.h"
 
 struct _UnityDashTile
 {
@@ -15,15 +35,6 @@ struct _UnityDashTile
   GSettings            *settings;
 };
 
-/**
- * UnityDashTile:
- *
- * An dash cell showing the icon and label for one AstalApps.Application.
- *
- * A primary click launches the app and activates the dash.close action to
- * dismiss the dash. A secondary click offers Open, the app's .desktop actions,
- * and Pin to Launcher.
- */
 G_DEFINE_FINAL_TYPE (UnityDashTile, unity_dash_tile, UNITY_TYPE_TILE)
 
 typedef enum
@@ -135,14 +146,6 @@ bind_application (UnityDashTile *self, AstalAppsApplication *app)
   gtk_label_set_text (self->label, name != NULL ? name : "");
 }
 
-/**
- * unity_dash_tile_new:
- * @app: the application the tile represents.
- *
- * Creates a new dash tile for @app.
- *
- * Returns: (transfer full): a new UnityDashTile
- */
 GtkWidget *
 unity_dash_tile_new (AstalAppsApplication *app)
 {

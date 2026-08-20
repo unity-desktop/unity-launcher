@@ -1,3 +1,23 @@
+/* unity-app-entry.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "unity-app-entry.h"
 
 #include <astal-wlr.h>
@@ -15,17 +35,6 @@ struct _UnityAppEntry
   gboolean    activated;
 };
 
-/**
- * UnityAppEntry:
- *
- * One row in the launcher's app list.
- *
- * An entry carries the app identity, an optional #GAppInfo, and a live
- * #GListModel of the app's currently open toplevels, filtered from the toplevel
- * service by app-id. The derived #UnityAppEntry:running and
- * #UnityAppEntry:activated booleans are notifiable properties, so tiles react to
- * changes. UnityAppList produces these entries. Consumers do not construct them.
- */
 G_DEFINE_FINAL_TYPE (UnityAppEntry, unity_app_entry, G_TYPE_OBJECT)
 
 typedef enum
@@ -80,7 +89,7 @@ static void
 attach_toplevel_listener (UnityAppEntry *self, AstalWlrToplevel *toplevel)
 {
   g_signal_connect_object (toplevel, "notify::activated",
-                           G_CALLBACK (on_toplevel_activated_changed), self, 0);
+                           G_CALLBACK (on_toplevel_activated_changed), self, G_CONNECT_DEFAULT);
 }
 
 static void
@@ -185,7 +194,7 @@ _unity_app_entry_new (const gchar *app_id, GAppInfo *app_info, GListModel *tople
       attach_toplevel_listener (self, tl);
     }
   g_signal_connect_object (toplevels, "items-changed",
-                           G_CALLBACK (on_toplevels_items_changed), self, 0);
+                           G_CALLBACK (on_toplevels_items_changed), self, G_CONNECT_DEFAULT);
 
   recompute_derived (self);
   return self;
@@ -202,14 +211,6 @@ _unity_app_entry_set_pinned (UnityAppEntry *self, gboolean pinned)
   g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_PINNED]);
 }
 
-/**
- * unity_app_entry_get_app_id:
- * @self: a #UnityAppEntry
- *
- * Gets the canonical .desktop id of the app.
- *
- * Returns: (transfer none): the app id
- */
 const gchar *
 unity_app_entry_get_app_id (UnityAppEntry *self)
 {
@@ -217,14 +218,6 @@ unity_app_entry_get_app_id (UnityAppEntry *self)
   return self->app_id;
 }
 
-/**
- * unity_app_entry_get_app_info:
- * @self: a #UnityAppEntry
- *
- * Gets the app's #GAppInfo, if one was resolved.
- *
- * Returns: (transfer none) (nullable): the app info, or %NULL for a running-only app
- */
 GAppInfo *
 unity_app_entry_get_app_info (UnityAppEntry *self)
 {
@@ -232,14 +225,6 @@ unity_app_entry_get_app_info (UnityAppEntry *self)
   return self->app_info;
 }
 
-/**
- * unity_app_entry_get_toplevels:
- * @self: a #UnityAppEntry
- *
- * Gets the live model of the app's open toplevels.
- *
- * Returns: (transfer none): a #GListModel of #AstalWlrToplevel
- */
 GListModel *
 unity_app_entry_get_toplevels (UnityAppEntry *self)
 {
@@ -247,14 +232,6 @@ unity_app_entry_get_toplevels (UnityAppEntry *self)
   return self->toplevels;
 }
 
-/**
- * unity_app_entry_get_pinned:
- * @self: a #UnityAppEntry
- *
- * Gets whether the app is pinned to the launcher.
- *
- * Returns: %TRUE if the app is pinned
- */
 gboolean
 unity_app_entry_get_pinned (UnityAppEntry *self)
 {
@@ -262,14 +239,6 @@ unity_app_entry_get_pinned (UnityAppEntry *self)
   return self->pinned;
 }
 
-/**
- * unity_app_entry_get_running:
- * @self: a #UnityAppEntry
- *
- * Gets whether the app has any open toplevels.
- *
- * Returns: %TRUE if at least one window is open
- */
 gboolean
 unity_app_entry_get_running (UnityAppEntry *self)
 {
@@ -277,14 +246,6 @@ unity_app_entry_get_running (UnityAppEntry *self)
   return self->running;
 }
 
-/**
- * unity_app_entry_get_activated:
- * @self: a #UnityAppEntry
- *
- * Gets whether any of the app's toplevels is focused.
- *
- * Returns: %TRUE if a window is activated
- */
 gboolean
 unity_app_entry_get_activated (UnityAppEntry *self)
 {
@@ -292,14 +253,6 @@ unity_app_entry_get_activated (UnityAppEntry *self)
   return self->activated;
 }
 
-/**
- * unity_app_entry_activate_or_launch:
- * @self: a #UnityAppEntry
- *
- * Applies the launcher's click semantics. With no open windows, the app is
- * launched through its #GAppInfo. With a focused window, that window is
- * minimized to hide it. Otherwise the first window is raised.
- */
 void
 unity_app_entry_activate_or_launch (UnityAppEntry *self)
 {
@@ -334,12 +287,6 @@ unity_app_entry_activate_or_launch (UnityAppEntry *self)
     astal_wlr_toplevel_activate (first);
 }
 
-/**
- * unity_app_entry_close_all:
- * @self: a #UnityAppEntry
- *
- * Closes every open window of the app, the launcher's "Quit" action.
- */
 void
 unity_app_entry_close_all (UnityAppEntry *self)
 {

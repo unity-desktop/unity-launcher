@@ -22,14 +22,6 @@
 
 #define UNITY_LAUNCHER_SCHEMA "org.unity.launcher"
 
-/**
- * unity_settings_get_default:
- *
- * Gets the launcher's shared #GSettings for the "org.unity.launcher" schema.
- * One instance is reused everywhere rather than each widget opening its own.
- *
- * Returns: (transfer none): the shared settings.
- */
 GSettings *
 unity_settings_get_default (void)
 {

@@ -1,3 +1,23 @@
+/* unity-search-app-results.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/search/unity-search-app-results.h"
 
 #include <astal-apps.h>
@@ -7,15 +27,6 @@
 #include "unity-app-catalog.h"
 #include "unity-settings.h"
 
-/**
- * UnitySearchAppResults:
- *
- * The application matches on the dash's search page: a fuzzy-queried single row
- * of app tiles under an "Applications" group. The grid layout caps it to one
- * row, so the number shown follows the width and the rest are dropped.
- *
- * A launched tile dismisses the dash through the dash.close action.
- */
 struct _UnitySearchAppResults
 {
   AdwBin         parent_instance;
@@ -36,17 +47,6 @@ box_clear (GtkBox *box)
     gtk_box_remove (box, c);
 }
 
-/**
- * unity_search_app_results_fill:
- * @self: a UnitySearchAppResults
- * @query: the text to match.
- *
- * Fuzzy-queries the catalog and fills the row. The widget hides itself when
- * nothing matches. Every match is added; the one-row grid layout shows only
- * those that fit the width.
- *
- * Returns: the number of matches.
- */
 guint
 unity_search_app_results_fill (UnitySearchAppResults *self, const gchar *query)
 {
@@ -69,12 +69,6 @@ unity_search_app_results_fill (UnitySearchAppResults *self, const gchar *query)
   return i;
 }
 
-/**
- * unity_search_app_results_clear:
- * @self: a UnitySearchAppResults
- *
- * Empties the grid and hides the widget.
- */
 void
 unity_search_app_results_clear (UnitySearchAppResults *self)
 {
@@ -83,12 +77,6 @@ unity_search_app_results_clear (UnitySearchAppResults *self)
   gtk_widget_set_visible (GTK_WIDGET (self), FALSE);
 }
 
-/**
- * unity_search_app_results_activate_selected:
- * @self: a UnitySearchAppResults
- *
- * Launches the first match. For Enter from the search entry.
- */
 void
 unity_search_app_results_activate_selected (UnitySearchAppResults *self)
 {
@@ -98,12 +86,6 @@ unity_search_app_results_activate_selected (UnitySearchAppResults *self)
     gtk_widget_activate (tile);
 }
 
-/**
- * unity_search_app_results_focus:
- * @self: a UnitySearchAppResults
- *
- * Moves keyboard focus into the grid. For Down from the search entry.
- */
 void
 unity_search_app_results_focus (UnitySearchAppResults *self)
 {
@@ -111,13 +93,6 @@ unity_search_app_results_focus (UnitySearchAppResults *self)
   gtk_widget_child_focus (GTK_WIDGET (self->tiles), GTK_DIR_DOWN);
 }
 
-/**
- * unity_search_app_results_new:
- *
- * Creates the application-matches widget for the search page.
- *
- * Returns: (transfer full): a new UnitySearchAppResults.
- */
 GtkWidget *
 unity_search_app_results_new (void)
 {

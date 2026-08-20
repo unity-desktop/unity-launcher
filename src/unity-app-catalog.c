@@ -20,15 +20,6 @@
 
 #include "unity-app-catalog.h"
 
-/**
- * unity_app_catalog_get_default:
- *
- * Gets the shared application catalog. One #AstalAppsApps is parsed once and
- * reused by the launcher, the dash browse grid and the search, rather than each
- * building its own copy.
- *
- * Returns: (transfer none): the shared catalog.
- */
 AstalAppsApps *
 unity_app_catalog_get_default (void)
 {

@@ -1,13 +1,25 @@
+/* unity-pinned-apps.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "components/unity-pinned-apps.h"
 
-/**
- * unity_pinned_apps_toggle:
- * @settings: the launcher GSettings.
- * @app_id: the desktop id to toggle.
- *
- * Toggles @app_id in the launcher's pinned-apps list and writes it back to
- * @settings. The id is removed if already present, otherwise it is appended.
- */
 void
 unity_pinned_apps_toggle (GSettings *settings, const gchar *app_id)
 {
@@ -31,13 +43,6 @@ unity_pinned_apps_toggle (GSettings *settings, const gchar *app_id)
                        (const gchar *const *) next->pdata);
 }
 
-/**
- * unity_pinned_apps_contains:
- * @settings: the launcher GSettings.
- * @app_id: the desktop id to test.
- *
- * Returns: %TRUE if @app_id is in the launcher's pinned-apps list.
- */
 gboolean
 unity_pinned_apps_contains (GSettings *settings, const gchar *app_id)
 {

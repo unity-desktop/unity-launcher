@@ -1,3 +1,23 @@
+/* unity-dash-grid-layout.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/unity-dash-grid-layout.h"
 
 #define GRID_GAP 24
@@ -9,24 +29,10 @@ struct _UnityDashGridLayout
   gint max_rows;   /* rows to show at most, or 0 for no limit */
 };
 
-/**
- * UnityDashGridLayout:
- *
- * A layout manager arranging children in a grid of equal square cells.
- *
- * It works off the horizontal: as many columns as fit the allocated width, then
- * the square side grown to fill the row exactly, and the height derived from the
- * resulting row count. The base cell is the tallest child's natural height so no
- * child is ever clipped. It suits any container of uniform tiles, so the dash
- * browse grid and the search matches share it.
- */
 G_DEFINE_FINAL_TYPE (UnityDashGridLayout, unity_dash_grid_layout, GTK_TYPE_LAYOUT_MANAGER)
 
-/* The base cell is a child's natural height (icon plus one label line). Height,
- * not width, drives the square so a long label does not inflate the cell; a wide
- * label simply ellipsizes, and nothing is clipped because the cell is never
- * shorter than the content. The tiles are uniform, so the first one measured
- * gives the cell for all of them, in O(1) rather than a per-child sweep. */
+/* Height drives the square, so a long label does not inflate the cell. The tiles
+ * are uniform, so the first one measured gives the cell for all of them. */
 static gint
 base_cell_size (GtkWidget *box)
 {
@@ -55,9 +61,8 @@ count_tiles (GtkWidget *box)
   return tiles;
 }
 
-/* How many base cells fit the width, and the side each grows to so the row fills
- * exactly. The count is not clamped to the tile count, so every box sizes its
- * cells the same way and rows stay flush. */
+/* How many cells fit the width, and the side each grows to so the row fills
+ * exactly. The count is not clamped, so all boxes size their cells the same. */
 static void
 resolve_grid (gint available_width, gint base_cell,
               gint *out_columns, gint *out_cell_size)
@@ -119,8 +124,8 @@ unity_dash_grid_layout_allocate (GtkLayoutManager *manager, GtkWidget *box,
   gint columns, cell_size;
   resolve_grid (width, base_cell_size (box), &columns, &cell_size);
 
-  /* With a row cap, only the first (rows * columns) tiles are shown; the rest
-   * are hidden from the layout so nothing spills past the capped height. */
+  /* With a row cap, only the first rows*columns tiles show. The rest are hidden
+   * so nothing spills past the capped height. */
   gint shown = (self->max_rows > 0) ? self->max_rows * columns : -1;
 
   gint index = 0;
@@ -165,27 +170,12 @@ unity_dash_grid_layout_init (UnityDashGridLayout *self)
   self->max_rows = 0;
 }
 
-/**
- * unity_dash_grid_layout_new:
- *
- * Creates a new square-cell grid layout manager.
- *
- * Returns: (transfer full): a new UnityDashGridLayout
- */
 GtkLayoutManager *
 unity_dash_grid_layout_new (void)
 {
   return g_object_new (UNITY_TYPE_DASH_GRID_LAYOUT, NULL);
 }
 
-/**
- * unity_dash_grid_layout_set_max_rows:
- * @manager: a UnityDashGridLayout
- * @max_rows: the most rows to lay out, or 0 for no limit
- *
- * Caps the grid to @max_rows rows. Tiles past the cap are hidden, so the grid
- * shows a fixed number of rows whose column count still follows the width.
- */
 void
 unity_dash_grid_layout_set_max_rows (GtkLayoutManager *manager, gint max_rows)
 {

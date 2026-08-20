@@ -1,12 +1,32 @@
+/* unity-launcher.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "unity-launcher.h"
 
 #include <adwaita.h>
 
+#include "components/unity-launcher-tile.h"
+#include "components/unity-pinned-apps.h"
 #include "unity-app-entry.h"
 #include "unity-app-list.h"
-#include "components/unity-launcher-tile.h"
 #include "unity-settings.h"
-#include "components/unity-pinned-apps.h"
 
 
 #define DASH_ANIMATION_MS 200
@@ -30,16 +50,6 @@ struct _UnityLauncher
   gint               ph_index;
 };
 
-/**
- * UnityLauncher:
- *
- * A layer-shell window anchored to the left edge at full height.
- *
- * The launcher holds a vertical strip of app tiles, pinned apps first then
- * running-but-unpinned apps, with drag-to-reorder within the pinned run. It
- * owns the `launcher` action group (pin-toggle, quit, reorder-pinned) that its
- * tiles target.
- */
 G_DEFINE_FINAL_TYPE (UnityLauncher, unity_launcher, ASTAL_TYPE_WINDOW)
 
 static void remove_placeholder (UnityLauncher *self);
@@ -402,9 +412,9 @@ install_drop_target (UnityLauncher *self)
 {
   GtkDropTarget *t = gtk_drop_target_new (G_TYPE_STRING, GDK_ACTION_MOVE);
   gtk_drop_target_set_preload (t, TRUE);
-  g_signal_connect_object (t, "motion", G_CALLBACK (on_strip_drag_motion), self, 0);
-  g_signal_connect_object (t, "leave",  G_CALLBACK (on_strip_drag_leave),  self, 0);
-  g_signal_connect_object (t, "drop",   G_CALLBACK (on_strip_drop),        self, 0);
+  g_signal_connect_object (t, "motion", G_CALLBACK (on_strip_drag_motion), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (t, "leave",  G_CALLBACK (on_strip_drag_leave),  self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (t, "drop",   G_CALLBACK (on_strip_drop),        self, G_CONNECT_DEFAULT);
   gtk_widget_add_controller (GTK_WIDGET (self->strip), GTK_EVENT_CONTROLLER (t));
 }
 
@@ -462,7 +472,7 @@ unity_launcher_init (UnityLauncher *self)
 
   self->apps = unity_app_list_new ();
   g_signal_connect_object (self->apps, "items-changed",
-                           G_CALLBACK (on_model_items_changed), self, 0);
+                           G_CALLBACK (on_model_items_changed), self, G_CONNECT_DEFAULT);
   on_model_items_changed (G_LIST_MODEL (self->apps), 0, 0,
                           g_list_model_get_n_items (G_LIST_MODEL (self->apps)), self);
 
@@ -492,15 +502,6 @@ ensure_style (void)
     }
 }
 
-/**
- * unity_launcher_new:
- * @app: the application the window belongs to.
- *
- * Creates a new launcher window and registers the launcher stylesheet, which
- * also styles the application grid.
- *
- * Returns: (transfer full): a new UnityLauncher
- */
 UnityLauncher *
 unity_launcher_new (GtkApplication *app)
 {

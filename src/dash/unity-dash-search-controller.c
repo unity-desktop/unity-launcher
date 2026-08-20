@@ -1,3 +1,23 @@
+/* unity-dash-search-controller.c
+ *
+ * Copyright 2026 Muqtadir
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "dash/unity-dash-search-controller.h"
 
 #include <gdk/gdkkeysyms.h>
@@ -20,26 +40,15 @@ struct _UnityDashSearchController
   guint           debounce_id;
 };
 
-/**
- * UnityDashSearchController:
- *
- * Drives the dash's search interaction.
- *
- * It debounces the search entry into queries on the search page, switches the
- * view stack between the apps and search pages as the query changes, and routes
- * Enter to launch the highlighted match and Down to move focus into the results.
- * It owns no widgets. The window passes in the ones it already holds.
- */
 G_DEFINE_FINAL_TYPE (UnityDashSearchController, unity_dash_search_controller, G_TYPE_OBJECT)
 
-static gboolean
+static void
 do_search (gpointer user_data)
 {
   UnityDashSearchController *self = user_data;
   self->debounce_id = 0;
   unity_dash_search_run (self->search_page,
                              gtk_editable_get_text (GTK_EDITABLE (self->entry)));
-  return G_SOURCE_REMOVE;
 }
 
 static void
@@ -59,7 +68,7 @@ on_search_changed (GtkSearchEntry *entry, gpointer user_data)
     }
 
   adw_view_stack_set_visible_child_name (self->stack, PAGE_SEARCH);
-  self->debounce_id = g_timeout_add (SEARCH_DEBOUNCE_MS, do_search, self);
+  self->debounce_id = g_timeout_add_once (SEARCH_DEBOUNCE_MS, do_search, self);
 }
 
 static void
@@ -87,13 +96,6 @@ on_entry_key (GtkEventControllerKey *key, guint keyval, guint keycode,
   return GDK_EVENT_PROPAGATE;
 }
 
-/**
- * unity_dash_search_controller_reset:
- * @self: a UnityDashSearchController
- *
- * Returns to the resting state. Cancels any pending query, clears the results
- * and the entry, and shows the apps page.
- */
 void
 unity_dash_search_controller_reset (UnityDashSearchController *self)
 {
@@ -105,17 +107,6 @@ unity_dash_search_controller_reset (UnityDashSearchController *self)
   gtk_editable_set_text (GTK_EDITABLE (self->entry), "");
 }
 
-/**
- * unity_dash_search_controller_new:
- * @entry: the search entry to drive queries from.
- * @stack: the view stack switched between the apps and search pages.
- * @search_page: the search results page.
- *
- * Creates a controller wiring @entry to @stack and the search page. The widgets
- * are borrowed and stay owned by the caller.
- *
- * Returns: (transfer full): a new UnityDashSearchController
- */
 UnityDashSearchController *
 unity_dash_search_controller_new (GtkSearchEntry *entry, AdwViewStack *stack,
                                   UnityDashSearch *search_page)
@@ -125,12 +116,12 @@ unity_dash_search_controller_new (GtkSearchEntry *entry, AdwViewStack *stack,
   self->stack       = stack;
   self->search_page = search_page;
 
-  g_signal_connect_object (entry, "search-changed", G_CALLBACK (on_search_changed), self, 0);
-  g_signal_connect_object (entry, "activate", G_CALLBACK (on_entry_activate), self, 0);
+  g_signal_connect_object (entry, "search-changed", G_CALLBACK (on_search_changed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (entry, "activate", G_CALLBACK (on_entry_activate), self, G_CONNECT_DEFAULT);
 
   GtkEventController *entry_key = gtk_event_controller_key_new ();
   gtk_event_controller_set_propagation_phase (entry_key, GTK_PHASE_CAPTURE);
-  g_signal_connect_object (entry_key, "key-pressed", G_CALLBACK (on_entry_key), self, 0);
+  g_signal_connect_object (entry_key, "key-pressed", G_CALLBACK (on_entry_key), self, G_CONNECT_DEFAULT);
   gtk_widget_add_controller (GTK_WIDGET (entry), entry_key);
 
   return self;
