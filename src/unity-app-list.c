@@ -1,5 +1,7 @@
 #include "unity-app-list.h"
 
+#include "unity-app-catalog.h"
+
 #include <string.h>
 
 #include <astal-apps.h>
@@ -264,35 +266,49 @@ sync_to_desired (UnityAppList *self)
 }
 
 static void
-invalidate_app_filters (UnityAppList *self)
+invalidate_entry_filter (UnityAppList *self, const gchar *canonical)
 {
-  GHashTableIter iter;
-  gpointer       entry_p;
+  if (canonical == NULL)
+    return;
 
-  g_hash_table_iter_init (&iter, self->cache);
-  while (g_hash_table_iter_next (&iter, NULL, &entry_p))
-    {
-      GListModel *toplevels = unity_app_entry_get_toplevels (entry_p);
-      if (!GTK_IS_FILTER_LIST_MODEL (toplevels))
-        continue;
-      GtkFilter *filter = gtk_filter_list_model_get_filter (GTK_FILTER_LIST_MODEL (toplevels));
-      if (filter != NULL)
-        gtk_filter_changed (filter, GTK_FILTER_CHANGE_DIFFERENT);
-    }
+  UnityAppEntry *entry = g_hash_table_lookup (self->cache, canonical);
+  if (entry == NULL)
+    return;
+
+  GListModel *toplevels = unity_app_entry_get_toplevels (entry);
+  if (!GTK_IS_FILTER_LIST_MODEL (toplevels))
+    return;
+
+  GtkFilter *filter = gtk_filter_list_model_get_filter (GTK_FILTER_LIST_MODEL (toplevels));
+  if (filter != NULL)
+    gtk_filter_changed (filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
 static void
 on_toplevel_app_id_notify (AstalWlrToplevel *toplevel, GParamSpec *pspec,
                            UnityAppList *self)
 {
-  (void) toplevel; (void) pspec;
+  (void) pspec;
+  const gchar *new_canonical = canonical_id_for (self, astal_wlr_toplevel_get_app_id (toplevel));
+  const gchar *old_canonical = g_object_get_data (G_OBJECT (toplevel), "unity-canonical");
+
   sync_to_desired (self);
-  invalidate_app_filters (self);
+
+  /* Only the entries the window left and joined need re-filtering, not every one. */
+  if (g_strcmp0 (old_canonical, new_canonical) != 0)
+    {
+      invalidate_entry_filter (self, old_canonical);
+      invalidate_entry_filter (self, new_canonical);
+      g_object_set_data_full (G_OBJECT (toplevel), "unity-canonical",
+                              g_strdup (new_canonical), g_free);
+    }
 }
 
 static void
 hook_toplevel (UnityAppList *self, AstalWlrToplevel *tl)
 {
+  const gchar *canonical = canonical_id_for (self, astal_wlr_toplevel_get_app_id (tl));
+  g_object_set_data_full (G_OBJECT (tl), "unity-canonical", g_strdup (canonical), g_free);
   g_signal_connect_object (tl, "notify::app-id",
                            G_CALLBACK (on_toplevel_app_id_notify), self, 0);
 }
@@ -329,7 +345,6 @@ unity_app_list_dispose (GObject *object)
   g_clear_pointer (&self->entries,      g_ptr_array_unref);
   g_clear_pointer (&self->cache,        g_hash_table_unref);
   g_clear_pointer (&self->id_canonical, g_hash_table_unref);
-  g_clear_object  (&self->catalog);
   g_clear_object  (&self->toplevels);
 
   G_OBJECT_CLASS (unity_app_list_parent_class)->dispose (object);
@@ -361,7 +376,7 @@ unity_app_list_init (UnityAppList *self)
   self->cache        = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_canonical = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 
-  self->catalog = astal_apps_apps_new ();
+  self->catalog = unity_app_catalog_get_default ();
   g_signal_connect_object (self->catalog, "notify::list",
                            G_CALLBACK (on_catalog_changed), self, 0);
 

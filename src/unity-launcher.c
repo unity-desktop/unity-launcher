@@ -5,12 +5,16 @@
 #include "unity-app-entry.h"
 #include "unity-app-list.h"
 #include "components/unity-launcher-tile.h"
-#include "unity-launcher-defs.h"
+#include "unity-settings.h"
 #include "components/unity-pinned-apps.h"
 
 
 #define DASH_ANIMATION_MS 200
 #define DASH_BUTTON_PADDING 6
+
+#define UNITY_LAUNCHER_KEY_LAUNCHER_ICON_SIZE "launcher-icon-size"
+
+#define UNITY_LAUNCHER_CHANGED_PINNED_APPS "changed::" UNITY_LAUNCHER_KEY_PINNED_APPS
 
 struct _UnityLauncher
 {
@@ -109,9 +113,9 @@ static void
 install_action_group (UnityLauncher *self)
 {
   static const GActionEntry entries[] = {
-    { "pin-toggle",     on_pin_toggle,     "s",     NULL, NULL, { 0, 0, 0 } },
-    { "quit",           on_quit,           "s",     NULL, NULL, { 0, 0, 0 } },
-    { "reorder-pinned", on_reorder_pinned, "(si)", NULL, NULL, { 0, 0, 0 } },
+    { UNITY_LAUNCHER_ACTION_NAME_PIN_TOGGLE, on_pin_toggle,     "s",     NULL, NULL, { 0, 0, 0 } },
+    { UNITY_LAUNCHER_ACTION_NAME_QUIT,       on_quit,           "s",     NULL, NULL, { 0, 0, 0 } },
+    { UNITY_LAUNCHER_ACTION_NAME_REORDER,    on_reorder_pinned, "(si)",  NULL, NULL, { 0, 0, 0 } },
   };
 
   g_autoptr (GSimpleActionGroup) group = g_simple_action_group_new ();
@@ -424,7 +428,6 @@ unity_launcher_dispose (GObject *object)
   self->placeholder = NULL;
 
   g_clear_object (&self->apps);
-  g_clear_object (&self->settings);
 
   G_OBJECT_CLASS (unity_launcher_parent_class)->dispose (object);
 }
@@ -448,7 +451,7 @@ unity_launcher_class_init (UnityLauncherClass *klass)
 static void
 unity_launcher_init (UnityLauncher *self)
 {
-  self->settings = g_settings_new (UNITY_LAUNCHER_SCHEMA);
+  self->settings = unity_settings_get_default ();
   self->ph_index = -1;
 
   gtk_widget_init_template (GTK_WIDGET (self));
