@@ -6,6 +6,8 @@
 
 G_BEGIN_DECLS
 
+#define UNITY_LAUNCHER_KEY_DASH_ICON_SIZE "dash-icon-size"
+
 #define UNITY_TYPE_DASH_TILE (unity_dash_tile_get_type ())
 
 G_DECLARE_FINAL_TYPE (UnityDashTile, unity_dash_tile,

@@ -7,8 +7,10 @@
 #include <gio/gdesktopappinfo.h>
 #include <graphene.h>
 
-#include "unity-launcher-defs.h"
+#include "unity-launcher.h"
 #include "components/unity-desktop-actions.h"
+
+#define UNITY_LAUNCHER_ACTION_SPREAD_APP "wayfire.spread-app"
 
 #define SPREAD_APP_ACTION UNITY_LAUNCHER_ACTION_SPREAD_APP
 
