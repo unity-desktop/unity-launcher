@@ -15,6 +15,7 @@ unity_launcher_sources = files(
   'unity-app-catalog.c',
   'unity-app-entry.c',
   'unity-app-list.c',
+  'unity-position.c',
   'unity-settings.c',
 )
 

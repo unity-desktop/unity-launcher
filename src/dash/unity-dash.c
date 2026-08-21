@@ -24,6 +24,7 @@
 #include "dash/unity-dash-apps.h"
 #include "dash/unity-dash-search-controller.h"
 #include "dash/unity-dash-search.h"
+#include "unity-position.h"
 #include "unity-settings.h"
 
 #define UNITY_LAUNCHER_KEY_DASH_MAXIMIZED "dash-maximized"
@@ -70,8 +71,11 @@ apply_layout (UnityDash *self)
     }
 
   gtk_widget_remove_css_class (panel, "fullscreen");
-  gtk_widget_set_halign  (panel, GTK_ALIGN_START);
-  gtk_widget_set_valign  (panel, GTK_ALIGN_START);
+
+  /* Open in the corner by the dash button; the launcher's exclusive zone keeps it clear. */
+  UnityPosition pos = g_settings_get_enum (self->settings, UNITY_LAUNCHER_KEY_POSITION);
+  gtk_widget_set_halign (panel, unity_position_dash_halign (pos));
+  gtk_widget_set_valign (panel, unity_position_dash_valign (pos));
   gtk_widget_set_hexpand (panel, FALSE);
   gtk_widget_set_vexpand (panel, FALSE);
 
@@ -275,6 +279,8 @@ unity_dash_init (UnityDash *self)
     self->entry, self->stack, self->search_page);
 
   g_signal_connect (self, "map", G_CALLBACK (on_grid_map), NULL);
+  g_signal_connect_object (self->settings, "changed::" UNITY_LAUNCHER_KEY_POSITION,
+                           G_CALLBACK (apply_layout), self, G_CONNECT_SWAPPED);
 
   unity_dismiss_attach (GTK_WIDGET (self), GTK_WIDGET (self->area),
                         GTK_WIDGET (self->panel),

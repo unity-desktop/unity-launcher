@@ -45,8 +45,9 @@ G_BEGIN_DECLS
 /**
  * UnityLauncher:
  *
- * A left-edge, full-height layer-shell window that shows a vertical strip of app
- * tiles and owns the `launcher` action group its tiles target.
+ * A layer-shell window that shows a strip of app tiles and owns the `launcher`
+ * action group its tiles target. The "position" setting anchors it to the left,
+ * right, or bottom edge, and the strip runs along that edge.
  */
 G_DECLARE_FINAL_TYPE (UnityLauncher, unity_launcher,
                       UNITY, LAUNCHER, AstalWindow)
