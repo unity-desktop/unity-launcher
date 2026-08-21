@@ -2,9 +2,12 @@ unity-launcher {
   background-color: var(--dark-5);
   color: var(--light-1);
   padding: 6px;
-  border-right: 1px solid alpha(var(--light-1), 0.22);
-  box-shadow: 2px 0 8px 0 alpha(var(--dark-5), 0.5);
+  box-shadow: 0 0 8px 0 alpha(var(--dark-5), 0.5);
 }
+
+unity-launcher.pos-left   { border-right: 1px solid alpha(var(--light-1), 0.22); }
+unity-launcher.pos-right  { border-left:  1px solid alpha(var(--light-1), 0.22); }
+unity-launcher.pos-bottom { border-top:   1px solid alpha(var(--light-1), 0.22); }
 
 
 unity-launcher button.action {

@@ -26,6 +26,7 @@
 #include "components/unity-pinned-apps.h"
 #include "unity-app-entry.h"
 #include "unity-app-list.h"
+#include "unity-position.h"
 #include "unity-settings.h"
 
 
@@ -36,19 +37,59 @@
 
 #define UNITY_LAUNCHER_CHANGED_PINNED_APPS "changed::" UNITY_LAUNCHER_KEY_PINNED_APPS
 
+/* Drag gap size and axis, kept on the placeholder so it survives the fade-out. */
+typedef struct
+{
+  gint           main_size;
+  gint           cross_size;
+  GtkOrientation orientation;
+} PlaceholderSlot;
+
 struct _UnityLauncher
 {
   AstalWindow        parent_instance;
   GtkImage          *dash_image;
+  GtkButton         *dash_button;
+  GtkBox            *content;
+  GtkScrolledWindow *scroller;
   GtkBox            *strip;
 
   GSettings         *settings;
   UnityAppList      *apps;
 
+  GtkOrientation     orientation;
+
   GtkWidget         *placeholder;
   AdwAnimation      *ph_anim;
   gint               ph_index;
 };
+
+static inline gboolean
+is_horizontal (UnityLauncher *self)
+{
+  return self->orientation == GTK_ORIENTATION_HORIZONTAL;
+}
+
+static gint
+tile_main_extent (UnityLauncher *self, GtkWidget *tile)
+{
+  return is_horizontal (self) ? gtk_widget_get_width (tile)
+                              : gtk_widget_get_height (tile);
+}
+
+static gint
+tile_cross_extent (UnityLauncher *self, GtkWidget *tile)
+{
+  return is_horizontal (self) ? gtk_widget_get_height (tile)
+                              : gtk_widget_get_width (tile);
+}
+
+static gdouble
+rect_main_mid (UnityLauncher *self, const graphene_rect_t *b)
+{
+  return is_horizontal (self) ? b->origin.x + b->size.width / 2.0
+                              : b->origin.y + b->size.height / 2.0;
+}
 
 G_DEFINE_FINAL_TYPE (UnityLauncher, unity_launcher, ASTAL_TYPE_WINDOW)
 
@@ -144,6 +185,57 @@ sync_dash_button (UnityLauncher *self)
   gtk_image_set_pixel_size (self->dash_image, size / 2);
 }
 
+static void
+apply_alignment (UnityLauncher *self)
+{
+  GtkAlign align = unity_tile_alignment_to_align (
+    g_settings_get_enum (self->settings, UNITY_LAUNCHER_KEY_TILE_ALIGNMENT));
+  if (is_horizontal (self))
+    gtk_widget_set_halign (GTK_WIDGET (self->strip), align);
+  else
+    gtk_widget_set_valign (GTK_WIDGET (self->strip), align);
+}
+
+/* Point the scroller and the dash-button gap along the strip's main axis. */
+static void
+configure_scroller (UnityLauncher *self)
+{
+  gboolean horiz = is_horizontal (self);
+
+  gtk_scrolled_window_set_policy (self->scroller,
+                                  horiz ? GTK_POLICY_EXTERNAL : GTK_POLICY_NEVER,
+                                  horiz ? GTK_POLICY_NEVER : GTK_POLICY_EXTERNAL);
+  gtk_scrolled_window_set_propagate_natural_width (self->scroller, !horiz);
+  gtk_scrolled_window_set_propagate_natural_height (self->scroller, horiz);
+  gtk_widget_set_hexpand (GTK_WIDGET (self->scroller), horiz);
+  gtk_widget_set_vexpand (GTK_WIDGET (self->scroller), !horiz);
+
+  gtk_widget_set_margin_end (GTK_WIDGET (self->dash_button), horiz ? 6 : 0);
+  gtk_widget_set_margin_bottom (GTK_WIDGET (self->dash_button), horiz ? 0 : 6);
+}
+
+static void
+apply_position (UnityLauncher *self)
+{
+  UnityPosition pos = g_settings_get_enum (self->settings, UNITY_LAUNCHER_KEY_POSITION);
+  self->orientation = unity_position_orientation (pos);
+
+  astal_window_set_anchor (ASTAL_WINDOW (self), unity_position_anchor (pos));
+  gtk_orientable_set_orientation (GTK_ORIENTABLE (self->content), self->orientation);
+  gtk_orientable_set_orientation (GTK_ORIENTABLE (self->strip), self->orientation);
+  configure_scroller (self);
+
+  gtk_widget_remove_css_class (GTK_WIDGET (self), "pos-left");
+  gtk_widget_remove_css_class (GTK_WIDGET (self), "pos-right");
+  gtk_widget_remove_css_class (GTK_WIDGET (self), "pos-bottom");
+  gtk_widget_add_css_class (GTK_WIDGET (self), unity_position_style_class (pos));
+
+  /* The alignment axis flipped, so clear both axes then set the new main one. */
+  gtk_widget_set_halign (GTK_WIDGET (self->strip), GTK_ALIGN_FILL);
+  gtk_widget_set_valign (GTK_WIDGET (self->strip), GTK_ALIGN_FILL);
+  apply_alignment (self);
+}
+
 static GtkWidget *
 create_launcher_tile (UnityLauncher *self, UnityAppEntry *entry)
 {
@@ -199,7 +291,7 @@ static gint
 slot_extent (UnityLauncher *self)
 {
   GtkWidget *t = nth_tile (self, 0);
-  gint       e = t ? gtk_widget_get_height (t) : 0;
+  gint       e = t != NULL ? tile_main_extent (self, t) : 0;
   if (e <= 0)
     e = g_settings_get_int (self->settings, UNITY_LAUNCHER_KEY_LAUNCHER_ICON_SIZE) + 8;
   return e;
@@ -208,12 +300,14 @@ slot_extent (UnityLauncher *self)
 static void
 ph_anim_cb (gdouble value, gpointer data)
 {
-  GtkWidget *ph    = data;
-  gint       slot  = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (ph), "slot"));
-  gint       cross = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (ph), "cross"));
-  gint       along = (gint) (value * slot + 0.5);
+  GtkWidget       *ph   = data;
+  PlaceholderSlot *slot = g_object_get_data (G_OBJECT (ph), "placeholder-slot");
+  gint             along = (gint) (value * slot->main_size + 0.5);
 
-  gtk_widget_set_size_request (ph, cross, along);
+  if (slot->orientation == GTK_ORIENTATION_HORIZONTAL)
+    gtk_widget_set_size_request (ph, along, slot->cross_size);
+  else
+    gtk_widget_set_size_request (ph, slot->cross_size, along);
   gtk_widget_set_opacity (ph, value);
 }
 
@@ -277,14 +371,16 @@ show_placeholder (UnityLauncher *self, gint idx)
   if (idx < 0)
     return;
 
-  GtkWidget *t0    = nth_tile (self, 0);
-  gint       cross = t0 ? gtk_widget_get_width (t0) : -1;
-  gint       slot  = slot_extent (self);
+  GtkWidget *t0 = nth_tile (self, 0);
 
-  GtkWidget *ph = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  PlaceholderSlot *slot = g_new0 (PlaceholderSlot, 1);
+  slot->main_size   = slot_extent (self);
+  slot->cross_size  = t0 != NULL ? tile_cross_extent (self, t0) : -1;
+  slot->orientation = self->orientation;
+
+  GtkWidget *ph = gtk_box_new (self->orientation, 0);
   gtk_widget_add_css_class (ph, "drag-placeholder");
-  g_object_set_data (G_OBJECT (ph), "slot",  GINT_TO_POINTER (slot));
-  g_object_set_data (G_OBJECT (ph), "cross", GINT_TO_POINTER (cross));
+  g_object_set_data_full (G_OBJECT (ph), "placeholder-slot", slot, g_free);
 
   GtkWidget *after = idx > 0 ? nth_tile (self, idx - 1) : NULL;
   gtk_box_insert_child_after (self->strip, ph, after);
@@ -325,7 +421,7 @@ pinned_index_of (UnityLauncher *self, const gchar *app_id)
 }
 
 static gint
-pinned_slot_for_y (UnityLauncher *self, gdouble y)
+pinned_slot_for_coord (UnityLauncher *self, gdouble coord)
 {
   gint slot = 0;
   for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self->strip));
@@ -338,7 +434,7 @@ pinned_slot_for_y (UnityLauncher *self, gdouble y)
       graphene_rect_t b;
       if (!gtk_widget_compute_bounds (c, GTK_WIDGET (self->strip), &b))
         continue;
-      if (y > b.origin.y + b.size.height / 2.0)
+      if (coord > rect_main_mid (self, &b))
         slot++;
       else
         break;
@@ -356,7 +452,6 @@ slot_to_dest (UnityLauncher *self, gint slot, const gchar *source)
 static GdkDragAction
 on_strip_drag_motion (GtkDropTarget *target, gdouble x, gdouble y, gpointer user_data)
 {
-  (void) x;
   UnityLauncher *self = user_data;
 
   if (self->ph_anim != NULL &&
@@ -373,7 +468,7 @@ on_strip_drag_motion (GtkDropTarget *target, gdouble x, gdouble y, gpointer user
       return 0;
     }
 
-  show_placeholder (self, pinned_slot_for_y (self, y));
+  show_placeholder (self, pinned_slot_for_coord (self, is_horizontal (self) ? x : y));
   return GDK_ACTION_MOVE;
 }
 
@@ -388,7 +483,7 @@ static gboolean
 on_strip_drop (GtkDropTarget *target, const GValue *value, gdouble x, gdouble y,
                gpointer user_data)
 {
-  (void) target; (void) x;
+  (void) target;
   UnityLauncher *self = user_data;
 
   const gchar *source = G_VALUE_HOLDS_STRING (value) ? g_value_get_string (value) : NULL;
@@ -398,7 +493,8 @@ on_strip_drop (GtkDropTarget *target, const GValue *value, gdouble x, gdouble y,
       return FALSE;
     }
 
-  gint slot = self->ph_index >= 0 ? self->ph_index : pinned_slot_for_y (self, y);
+  gdouble coord = is_horizontal (self) ? x : y;
+  gint slot = self->ph_index >= 0 ? self->ph_index : pinned_slot_for_coord (self, coord);
   gint dest = slot_to_dest (self, slot, source);
 
   remove_placeholder (self);
@@ -453,6 +549,9 @@ unity_launcher_class_init (UnityLauncherClass *klass)
   gtk_widget_class_set_template_from_resource (
     widget_class, "/org/unity/launcher/unity-launcher.ui");
   gtk_widget_class_bind_template_child (widget_class, UnityLauncher, dash_image);
+  gtk_widget_class_bind_template_child (widget_class, UnityLauncher, dash_button);
+  gtk_widget_class_bind_template_child (widget_class, UnityLauncher, content);
+  gtk_widget_class_bind_template_child (widget_class, UnityLauncher, scroller);
   gtk_widget_class_bind_template_child (widget_class, UnityLauncher, strip);
 
   gtk_widget_class_set_css_name (widget_class, "unity-launcher");
@@ -465,6 +564,12 @@ unity_launcher_init (UnityLauncher *self)
   self->ph_index = -1;
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  apply_position (self);
+  g_signal_connect_object (self->settings, "changed::" UNITY_LAUNCHER_KEY_POSITION,
+                           G_CALLBACK (apply_position), self, G_CONNECT_SWAPPED);
+  g_signal_connect_object (self->settings, "changed::" UNITY_LAUNCHER_KEY_TILE_ALIGNMENT,
+                           G_CALLBACK (apply_alignment), self, G_CONNECT_SWAPPED);
 
   sync_dash_button (self);
   g_signal_connect_object (self->settings, "changed::" UNITY_LAUNCHER_KEY_LAUNCHER_ICON_SIZE,
