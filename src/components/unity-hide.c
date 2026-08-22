@@ -413,8 +413,7 @@ track_dash (UnityHide *self, GtkWindow *dash)
 {
   if (dash == NULL || self->dash == dash)
     return;
-  self->dash = dash;
-  g_object_add_weak_pointer (G_OBJECT (dash), (gpointer *) &self->dash);
+  g_set_weak_pointer (&self->dash, dash);
   g_signal_connect_object (dash, "notify::visible",
                            G_CALLBACK (on_dash_notify_visible), self, G_CONNECT_DEFAULT);
   unity_hide_set_hold (self, UNITY_HIDE_HOLD_DASH, dash_open (self));
@@ -470,8 +469,7 @@ unity_hide_dispose (GObject *object)
   if (self->dash != NULL)
     {
       g_object_set (self->dash, unity_position_edge_margin (self->position), 0, NULL);
-      g_object_remove_weak_pointer (G_OBJECT (self->dash), (gpointer *) &self->dash);
-      self->dash = NULL;
+      g_clear_weak_pointer (&self->dash);
     }
 
   /* Drop the spread inset we may have set, so it does not linger for a gone launcher. */
