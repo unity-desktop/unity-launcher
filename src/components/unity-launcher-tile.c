@@ -23,6 +23,7 @@
 #include <math.h>
 
 #include <adwaita.h>
+#include <astal-wayfire.h>
 #include <astal-wlr.h>
 #include <gdk/wayland/gdkwayland.h>
 #include <gio/gdesktopappinfo.h>
@@ -30,10 +31,6 @@
 
 #include "components/unity-desktop-actions.h"
 #include "unity-launcher.h"
-
-#define UNITY_LAUNCHER_ACTION_SPREAD_APP "wayfire.spread-app"
-
-#define SPREAD_APP_ACTION UNITY_LAUNCHER_ACTION_SPREAD_APP
 
 #define FOOTPRINT_PADDING     4
 
@@ -47,13 +44,15 @@ struct _UnityLauncherTile
 
   UnityAppEntry *entry;
   GtkWidget          *dot;
+  gboolean       dragging;
 };
 
 typedef enum
 {
   PROP_ENTRY = 1,
+  PROP_DRAGGING,
 } UnityLauncherTileProperty;
-static GParamSpec *properties[PROP_ENTRY + 1];
+static GParamSpec *properties[PROP_DRAGGING + 1];
 
 G_DEFINE_FINAL_TYPE (UnityLauncherTile, unity_launcher_tile, UNITY_TYPE_TILE)
 
@@ -169,10 +168,10 @@ spread_app_windows (UnityLauncherTile *self)
       g_ptr_array_add (ids, dup);
       g_hash_table_add (seen, dup);
     }
-  g_ptr_array_add (ids, NULL);
 
-  gtk_widget_activate_action (GTK_WIDGET (self), SPREAD_APP_ACTION, "^as",
-                              (const gchar *const *) ids->pdata);
+  AstalWayfireSpatial *spatial = astal_wayfire_spatial_get_default ();
+  if (spatial != NULL)
+    astal_wayfire_spatial_spread_app (spatial, (gchar **) ids->pdata, ids->len);
 }
 
 static void
@@ -338,6 +337,9 @@ on_drag_begin (GtkDragSource *source, GdkDrag *drag, gpointer user_data)
   if (paintable != NULL)
     gtk_drag_source_set_icon (source, paintable, size / 2, size / 2);
 
+  self->dragging = TRUE;
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_DRAGGING]);
+
   fade_opacity (GTK_WIDGET (self), 1.0, 0.0, DND_FADE_OUT_MS);
 }
 
@@ -345,7 +347,11 @@ static void
 on_drag_end (GtkDragSource *source, GdkDrag *drag, gboolean delete_data, gpointer user_data)
 {
   (void) source; (void) drag;
+  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (user_data);
   GtkWidget *widget = GTK_WIDGET (user_data);
+
+  self->dragging = FALSE;
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_DRAGGING]);
 
   if (delete_data)
     {
@@ -458,6 +464,13 @@ unity_launcher_tile_get_pinned (UnityLauncherTile *self)
   return self->entry ? unity_app_entry_get_pinned (self->entry) : FALSE;
 }
 
+gboolean
+unity_launcher_tile_get_dragging (UnityLauncherTile *self)
+{
+  g_return_val_if_fail (UNITY_IS_LAUNCHER_TILE (self), FALSE);
+  return self->dragging;
+}
+
 static void
 unity_launcher_tile_dispose (GObject *object)
 {
@@ -472,7 +485,8 @@ unity_launcher_tile_get_property (GObject *object, guint id, GValue *value, GPar
   UnityLauncherTile *self = UNITY_LAUNCHER_TILE (object);
   switch ((UnityLauncherTileProperty) id)
     {
-    case PROP_ENTRY: g_value_set_object (value, self->entry); break;
+    case PROP_ENTRY:    g_value_set_object  (value, self->entry);    break;
+    case PROP_DRAGGING: g_value_set_boolean (value, self->dragging); break;
     default: G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, pspec);
     }
 }
@@ -503,6 +517,9 @@ unity_launcher_tile_class_init (UnityLauncherTileClass *klass)
   properties[PROP_ENTRY] = g_param_spec_object (
     "entry", NULL, NULL, UNITY_TYPE_APP_ENTRY,
     G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+  properties[PROP_DRAGGING] = g_param_spec_boolean (
+    "dragging", NULL, NULL, FALSE,
+    G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
   g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 
   gtk_widget_class_set_css_name (GTK_WIDGET_CLASS (klass), "tile");

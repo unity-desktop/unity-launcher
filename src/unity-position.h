@@ -83,6 +83,28 @@ AstalWindowAnchor unity_position_anchor (UnityPosition position);
 GtkOrientation unity_position_orientation (UnityPosition position);
 
 /**
+ * unity_position_is_horizontal:
+ * @position: a #UnityPosition.
+ *
+ * Whether the tile strip runs horizontally. A shorthand for testing
+ * unity_position_orientation() against %GTK_ORIENTATION_HORIZONTAL.
+ *
+ * Returns: %TRUE for the bottom edge, %FALSE for the left and right edges.
+ */
+gboolean unity_position_is_horizontal (UnityPosition position);
+
+/**
+ * unity_position_edge_margin:
+ * @position: a #UnityPosition.
+ *
+ * Gets the margin property name for the screen-facing edge the launcher anchors
+ * to. This is the margin to push to slide the launcher off that edge.
+ *
+ * Returns: a static string, one of "margin-left", "margin-right", "margin-bottom".
+ */
+const gchar *unity_position_edge_margin (UnityPosition position);
+
+/**
  * unity_position_style_class:
  * @position: a #UnityPosition.
  *

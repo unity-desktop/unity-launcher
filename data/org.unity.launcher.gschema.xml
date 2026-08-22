@@ -10,10 +10,19 @@
     <value nick="center" value="1"/>
     <value nick="end" value="2"/>
   </enum>
+  <enum id="org.unity.launcher.HideMode">
+    <value nick="none" value="0"/>
+    <value nick="autohide" value="1"/>
+    <value nick="intellihide" value="2"/>
+  </enum>
   <schema id="org.unity.launcher" path="/org/unity/launcher/">
     <key name="position" enum="org.unity.launcher.Position">
       <default>'left'</default>
       <summary>Screen edge the launcher sits on</summary>
+    </key>
+    <key name="hide" enum="org.unity.launcher.HideMode">
+      <default>'none'</default>
+      <summary>When the launcher hides itself in desktop-view</summary>
     </key>
     <key name="tile-alignment" enum="org.unity.launcher.TileAlignment">
       <default>'start'</default>

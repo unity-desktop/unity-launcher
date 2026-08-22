@@ -42,6 +42,24 @@ unity_position_orientation (UnityPosition position)
                                            : GTK_ORIENTATION_VERTICAL;
 }
 
+gboolean
+unity_position_is_horizontal (UnityPosition position)
+{
+  return unity_position_orientation (position) == GTK_ORIENTATION_HORIZONTAL;
+}
+
+const gchar *
+unity_position_edge_margin (UnityPosition position)
+{
+  switch (position)
+    {
+    case UNITY_POSITION_RIGHT:  return "margin-right";
+    case UNITY_POSITION_BOTTOM: return "margin-bottom";
+    case UNITY_POSITION_LEFT:
+    default:                    return "margin-left";
+    }
+}
+
 const gchar *
 unity_position_style_class (UnityPosition position)
 {

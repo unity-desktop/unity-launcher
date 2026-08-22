@@ -66,4 +66,14 @@ const gchar *unity_launcher_tile_get_app_id (UnityLauncherTile *self);
  */
 gboolean     unity_launcher_tile_get_pinned (UnityLauncherTile *self);
 
+/**
+ * unity_launcher_tile_get_dragging:
+ * @self: a #UnityLauncherTile.
+ *
+ * Gets whether the tile is currently being dragged.
+ *
+ * Returns: %TRUE while a drag of this tile is in progress.
+ */
+gboolean     unity_launcher_tile_get_dragging (UnityLauncherTile *self);
+
 G_END_DECLS
