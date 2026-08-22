@@ -31,6 +31,7 @@ typedef struct
   GtkPopoverMenu *popover;
   gint            icon_size;
   GtkPositionType menu_position;
+  gboolean        menu_shown;
 } UnityTilePrivate;
 
 G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (UnityTile, unity_tile, GTK_TYPE_BUTTON)
@@ -38,8 +39,22 @@ G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (UnityTile, unity_tile, GTK_TYPE_BUTTON)
 typedef enum
 {
   PROP_ICON_SIZE = 1,
+  PROP_MENU_SHOWN,
 } UnityTileProperty;
-static GParamSpec *properties[PROP_ICON_SIZE + 1];
+static GParamSpec *properties[PROP_MENU_SHOWN + 1];
+
+static void
+on_menu_closed (GtkPopover *popover, gpointer data)
+{
+  (void) popover;
+  UnityTile        *self = data;
+  UnityTilePrivate *priv = unity_tile_get_instance_private (self);
+
+  if (!priv->menu_shown)
+    return;
+  priv->menu_shown = FALSE;
+  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_MENU_SHOWN]);
+}
 
 static void
 present_menu (UnityTile *self)
@@ -62,6 +77,7 @@ present_menu (UnityTile *self)
       gtk_popover_set_has_arrow (GTK_POPOVER (priv->popover), FALSE);
       gtk_popover_set_position (GTK_POPOVER (priv->popover), priv->menu_position);
       gtk_widget_add_css_class (GTK_WIDGET (priv->popover), "body");
+      g_signal_connect (priv->popover, "closed", G_CALLBACK (on_menu_closed), self);
     }
   gtk_popover_menu_set_menu_model (priv->popover, G_MENU_MODEL (menu));
 
@@ -70,6 +86,12 @@ present_menu (UnityTile *self)
   };
   gtk_popover_set_pointing_to (GTK_POPOVER (priv->popover), &rect);
   gtk_popover_popup (GTK_POPOVER (priv->popover));
+
+  if (!priv->menu_shown)
+    {
+      priv->menu_shown = TRUE;
+      g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_MENU_SHOWN]);
+    }
 }
 
 static void
@@ -136,13 +158,23 @@ unity_tile_set_menu_position (UnityTile *self, GtkPositionType position)
     gtk_popover_set_position (GTK_POPOVER (priv->popover), position);
 }
 
+gboolean
+unity_tile_get_menu_shown (UnityTile *self)
+{
+  UnityTilePrivate *priv;
+  g_return_val_if_fail (UNITY_IS_TILE (self), FALSE);
+  priv = unity_tile_get_instance_private (self);
+  return priv->menu_shown;
+}
+
 static void
 unity_tile_get_property (GObject *object, guint id, GValue *value, GParamSpec *pspec)
 {
   UnityTilePrivate *priv = unity_tile_get_instance_private (UNITY_TILE (object));
   switch ((UnityTileProperty) id)
     {
-    case PROP_ICON_SIZE: g_value_set_int (value, priv->icon_size); break;
+    case PROP_ICON_SIZE:  g_value_set_int     (value, priv->icon_size);  break;
+    case PROP_MENU_SHOWN: g_value_set_boolean (value, priv->menu_shown); break;
     default: G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, pspec);
     }
 }
@@ -195,6 +227,9 @@ unity_tile_class_init (UnityTileClass *klass)
   properties[PROP_ICON_SIZE] = g_param_spec_int (
     "icon-size", NULL, NULL, ICON_SIZE_MIN, ICON_SIZE_MAX, ICON_SIZE_DEFAULT,
     G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY | G_PARAM_STATIC_STRINGS);
+  properties[PROP_MENU_SHOWN] = g_param_spec_boolean (
+    "menu-shown", NULL, NULL, FALSE,
+    G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 }

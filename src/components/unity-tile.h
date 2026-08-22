@@ -104,4 +104,14 @@ void      unity_tile_set_active       (UnityTile *self, gboolean active);
  */
 void      unity_tile_set_menu_position (UnityTile *self, GtkPositionType position);
 
+/**
+ * unity_tile_get_menu_shown:
+ * @self: a #UnityTile.
+ *
+ * Gets whether the tile's secondary-click menu is currently open.
+ *
+ * Returns: %TRUE while the menu is open.
+ */
+gboolean  unity_tile_get_menu_shown   (UnityTile *self);
+
 G_END_DECLS
