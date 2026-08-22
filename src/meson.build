@@ -8,6 +8,8 @@ unity_launcher_deps = [
   dep_astal4,
   dep_astalapps,
   dep_astalwlr,
+  dep_astalwayfire,
+  dep_json,
 ]
 
 unity_launcher_sources = files(
