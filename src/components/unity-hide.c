@@ -414,6 +414,7 @@ track_dash (UnityHide *self, GtkWindow *dash)
   if (dash == NULL || self->dash == dash)
     return;
   self->dash = dash;
+  g_object_add_weak_pointer (G_OBJECT (dash), (gpointer *) &self->dash);
   g_signal_connect_object (dash, "notify::visible",
                            G_CALLBACK (on_dash_notify_visible), self, G_CONNECT_DEFAULT);
   unity_hide_set_hold (self, UNITY_HIDE_HOLD_DASH, dash_open (self));
@@ -467,7 +468,16 @@ unity_hide_dispose (GObject *object)
       g_clear_object (&self->slide);
     }
   if (self->dash != NULL)
-    g_object_set (self->dash, unity_position_edge_margin (self->position), 0, NULL);
+    {
+      g_object_set (self->dash, unity_position_edge_margin (self->position), 0, NULL);
+      g_object_remove_weak_pointer (G_OBJECT (self->dash), (gpointer *) &self->dash);
+      self->dash = NULL;
+    }
+
+  /* Drop the spread inset we may have set, so it does not linger for a gone launcher. */
+  AstalWayfireSpatial *spatial = astal_wayfire_spatial_get_default ();
+  if (spatial != NULL)
+    astal_wayfire_spatial_set_inset (spatial, 0, 0, 0, 0);
 
   G_OBJECT_CLASS (unity_hide_parent_class)->dispose (object);
 }

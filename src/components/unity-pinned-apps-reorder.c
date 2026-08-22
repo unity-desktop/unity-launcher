@@ -318,12 +318,7 @@ unity_pinned_apps_reorder_dispose (GObject *object)
 {
   UnityPinnedAppsReorder *self = UNITY_PINNED_APPS_REORDER (object);
 
-  if (self->anim != NULL)
-    {
-      adw_animation_reset (self->anim);
-      g_clear_object (&self->anim);
-    }
-  self->placeholder = NULL;
+  remove_placeholder (self);
 
   G_OBJECT_CLASS (unity_pinned_apps_reorder_parent_class)->dispose (object);
 }

@@ -77,7 +77,8 @@ present_menu (UnityTile *self)
       gtk_popover_set_has_arrow (GTK_POPOVER (priv->popover), FALSE);
       gtk_popover_set_position (GTK_POPOVER (priv->popover), priv->menu_position);
       gtk_widget_add_css_class (GTK_WIDGET (priv->popover), "body");
-      g_signal_connect (priv->popover, "closed", G_CALLBACK (on_menu_closed), self);
+      g_signal_connect_object (priv->popover, "closed", G_CALLBACK (on_menu_closed),
+                               self, G_CONNECT_DEFAULT);
     }
   gtk_popover_menu_set_menu_model (priv->popover, G_MENU_MODEL (menu));
 
