@@ -24,9 +24,6 @@
 
 G_BEGIN_DECLS
 
-#define UNITY_LAUNCHER_KEY_POSITION "position"
-#define UNITY_LAUNCHER_KEY_TILE_ALIGNMENT "tile-alignment"
-
 /**
  * UnityPosition:
  * @UNITY_POSITION_LEFT: the left edge, tiles stacked vertically.
@@ -113,6 +110,17 @@ const gchar *unity_position_edge_margin (UnityPosition position);
  * Returns: a static string, one of "pos-left", "pos-right", "pos-bottom".
  */
 const gchar *unity_position_style_class (UnityPosition position);
+
+/**
+ * unity_position_menu_side:
+ * @position: the launcher position.
+ *
+ * The side a tile's menu opens towards: away from the edge the launcher sits on,
+ * so the menu never points off-screen.
+ *
+ * Returns: the #GtkPositionType for the menu.
+ */
+GtkPositionType unity_position_menu_side (UnityPosition position);
 
 /**
  * unity_position_dash_halign:

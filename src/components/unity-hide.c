@@ -22,12 +22,24 @@
 
 #include <adwaita.h>
 #include <astal-wayfire.h>
+#include <graphene.h>
+#include <graphene.h>
 
-#include "dash/unity-dash.h"
 #include "unity-position.h"
-#include "unity-settings.h"
 
-#define UNITY_LAUNCHER_KEY_HIDE "hide"
+/* Recognise a UnityDash without including its header: it stamps itself with a
+ * role marker at init. See UNITY_DASH_WINDOW_ROLE_KEY in dash/unity-dash.h. */
+#define UNITY_DASH_WINDOW_ROLE_KEY  "unity-dash-role"
+#define UNITY_DASH_WINDOW_ROLE      "dash"
+
+static gboolean
+window_is_dash (GtkWindow *window)
+{
+  return window != NULL &&
+         g_object_get_data (G_OBJECT (window), UNITY_DASH_WINDOW_ROLE_KEY) ==
+           g_intern_static_string (UNITY_DASH_WINDOW_ROLE);
+}
+#include "unity-settings.h"
 
 #define HIDE_PEEK      2
 #define HIDE_SLIDE_MS  200
@@ -140,14 +152,10 @@ launcher_footprint (UnityHide *self)
                               : gdk_surface_get_width (surface);
 }
 
-static gboolean
-rects_intersect (gint ax, gint ay, gint aw, gint ah, gint bx, gint by, gint bw, gint bh)
-{
-  return ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
-}
-
-/* Whether the activated window's rect intersects the strip the launcher sits on. A
- * maximized or fullscreen window fills the output, so it intersects too. */
+/* Whether the focused window covers the launcher's strip. Fullscreen and
+ * maximized are asked of the compositor (fast, always covers); anything else
+ * falls back to a geometry intersection so a floating window dragged into the
+ * strip zone still triggers hide. */
 static gboolean
 occluded (UnityHide *self)
 {
@@ -157,17 +165,30 @@ occluded (UnityHide *self)
     return FALSE;
 
   AstalWayfireView *view = astal_wayfire_wayfire_get_focused_view (wf);
+  /* Restrict to real application toplevels so our own layer-shell surfaces (the
+   * dash) never count as occluding. Today UNITY_HIDE_HOLD_DASH also short-
+   * circuits this path, but this makes the filter structural. */
   if (view == NULL || !astal_wayfire_view_get_mapped (view) ||
-      astal_wayfire_view_get_minimized (view))
+      astal_wayfire_view_get_minimized (view) ||
+      !astal_wayfire_view_get_is_toplevel (view))
     return FALSE;
 
-  AstalWayfireOutput *output =
-    astal_wayfire_wayfire_get_output (wf, astal_wayfire_view_get_output_id (view));
+  /* Fast path: the compositor's own answer. */
+  if (astal_wayfire_view_get_fullscreen (view) ||
+      astal_wayfire_view_get_is_maximized (view))
+    return TRUE;
+
+  /* Geometry path: does the window's rect intersect the strip? focused_output
+   * returns transfer-none and tracks focused_view.output_id, so no lookup and
+   * no leak. */
+  AstalWayfireOutput *output = astal_wayfire_wayfire_get_focused_output (wf);
   if (output == NULL)
     return FALSE;
 
-  gint out_x = astal_wayfire_output_get_x (output), out_y = astal_wayfire_output_get_y (output);
-  gint out_w = astal_wayfire_output_get_width (output), out_h = astal_wayfire_output_get_height (output);
+  gint out_x = astal_wayfire_output_get_x (output);
+  gint out_y = astal_wayfire_output_get_y (output);
+  gint out_w = astal_wayfire_output_get_width (output);
+  gint out_h = astal_wayfire_output_get_height (output);
 
   /* The strip the launcher occupies: full output on its edge, `thickness` deep. */
   gint strip_x = out_x, strip_y = out_y, strip_w = out_w, strip_h = out_h;
@@ -179,9 +200,12 @@ occluded (UnityHide *self)
     default:                    strip_w = thickness;                                      break;
     }
 
-  return rects_intersect (astal_wayfire_view_get_x (view), astal_wayfire_view_get_y (view),
-                          astal_wayfire_view_get_width (view), astal_wayfire_view_get_height (view),
-                          strip_x, strip_y, strip_w, strip_h);
+  graphene_rect_t win = GRAPHENE_RECT_INIT (
+    astal_wayfire_view_get_x (view), astal_wayfire_view_get_y (view),
+    astal_wayfire_view_get_width (view), astal_wayfire_view_get_height (view));
+  graphene_rect_t strip = GRAPHENE_RECT_INIT (strip_x, strip_y, strip_w, strip_h);
+
+  return graphene_rect_intersection (&win, &strip, NULL);
 }
 
 /* The one thing that differs by mode: a spread or none always shows; both hiding
@@ -225,8 +249,8 @@ sync_spread_inset (UnityHide *self)
   astal_wayfire_spatial_set_inset (spatial, left, right, 0, bottom);
 }
 
-/* Inset an open dash by the launcher's footprint while overlaying, so it opens
- * beside the launcher. When reserving, the exclusive zone already does this. */
+/* Tell the dash how much to inset while it overlays. When reserving, the
+ * exclusive zone already keeps the strip clear, so no inset is needed. */
 static void
 sync_dash_inset (UnityHide *self)
 {
@@ -234,10 +258,7 @@ sync_dash_inset (UnityHide *self)
     return;
   gboolean inset_needed = dash_open (self) && !is_reserving (self);
   gint     inset        = inset_needed ? launcher_footprint (self) : 0;
-  g_object_set (self->dash, "margin-left", 0, "margin-right", 0,
-                "margin-top", 0, "margin-bottom", 0, NULL);
-  if (inset != 0)
-    g_object_set (self->dash, unity_position_edge_margin (self->position), inset, NULL);
+  g_object_set (self->dash, "launcher-inset", inset, NULL);
 }
 
 /* Reserve an exclusive zone only in `none`; autohide and intellihide overlay. */
@@ -425,7 +446,7 @@ static void
 on_window_added (GtkApplication *app, GtkWindow *window, gpointer data)
 {
   (void) app;
-  if (UNITY_IS_DASH (window))
+  if (window_is_dash (window))
     track_dash (data, window);
 }
 
@@ -447,7 +468,7 @@ on_realize (GtkWidget *widget, gpointer data)
   g_signal_connect_object (app, "window-added", G_CALLBACK (on_window_added),
                            self, G_CONNECT_DEFAULT);
   for (GList *l = gtk_application_get_windows (app); l != NULL; l = l->next)
-    if (UNITY_IS_DASH (l->data))
+    if (window_is_dash (l->data))
       {
         track_dash (self, GTK_WINDOW (l->data));
         break;
@@ -468,7 +489,7 @@ unity_hide_dispose (GObject *object)
     }
   if (self->dash != NULL)
     {
-      g_object_set (self->dash, unity_position_edge_margin (self->position), 0, NULL);
+      g_object_set (self->dash, "launcher-inset", 0, NULL);
       g_clear_weak_pointer (&self->dash);
     }
 

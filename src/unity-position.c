@@ -72,6 +72,18 @@ unity_position_style_class (UnityPosition position)
     }
 }
 
+GtkPositionType
+unity_position_menu_side (UnityPosition position)
+{
+  switch (position)
+    {
+    case UNITY_POSITION_RIGHT:  return GTK_POS_LEFT;
+    case UNITY_POSITION_BOTTOM: return GTK_POS_TOP;
+    case UNITY_POSITION_LEFT:
+    default:                    return GTK_POS_RIGHT;
+    }
+}
+
 GtkAlign
 unity_position_dash_halign (UnityPosition position)
 {
