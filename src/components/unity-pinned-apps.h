@@ -24,8 +24,6 @@
 
 G_BEGIN_DECLS
 
-#define UNITY_LAUNCHER_KEY_PINNED_APPS "pinned-apps"
-
 /**
  * unity_pinned_apps_toggle:
  * @settings: the launcher #GSettings.
@@ -34,7 +32,18 @@ G_BEGIN_DECLS
  * Toggles @app_id in the pinned-apps list. If the id is present, it removes it.
  * If the id is absent, it appends it.
  */
-void     unity_pinned_apps_toggle   (GSettings *settings, const gchar *app_id);
+void      unity_pinned_apps_toggle   (GSettings *settings, const gchar *app_id);
+
+/**
+ * unity_pinned_apps_insert:
+ * @settings: the launcher #GSettings.
+ * @app_id: the app id to place.
+ * @index: the position to place it at, clamped to the list without @app_id.
+ *
+ * Moves @app_id to @index in the pinned-apps list. An id that was not pinned
+ * gets pinned there, so a drag out of the running tiles is a pin.
+ */
+void      unity_pinned_apps_insert   (GSettings *settings, const gchar *app_id, gint index);
 
 /**
  * unity_pinned_apps_contains:
@@ -45,6 +54,6 @@ void     unity_pinned_apps_toggle   (GSettings *settings, const gchar *app_id);
  *
  * Returns: %TRUE if the app is pinned.
  */
-gboolean unity_pinned_apps_contains (GSettings *settings, const gchar *app_id);
+gboolean  unity_pinned_apps_contains (GSettings *settings, const gchar *app_id);
 
 G_END_DECLS

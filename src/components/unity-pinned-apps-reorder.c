@@ -22,17 +22,17 @@
 
 #include <adwaita.h>
 
-#include "components/unity-launcher-tile.h"
-#include "unity-launcher.h"
+#include "components/unity-launcher-app-strip.h"
+#include "components/unity-launcher-app-tile.h"
 
 #define PLACEHOLDER_MS 200
 
 /* Drag gap size and axis, kept on the placeholder so it survives the fade-out. */
 typedef struct
 {
-  gint           main_size;
-  gint           cross_size;
-  GtkOrientation orientation;
+  gint            main_size;
+  gint            cross_size;
+  GtkOrientation  orientation;
 } PlaceholderSlot;
 
 struct _UnityPinnedAppsReorder
@@ -41,7 +41,8 @@ struct _UnityPinnedAppsReorder
 
   GtkBox       *strip;        /* borrowed */
   GtkWidget    *placeholder;  /* child of the strip while a drag is live */
-  AdwAnimation *anim;
+  GtkWidget    *fading;       /* the previous placeholder, fading out */
+  AdwAnimation *anim;         /* animation on `placeholder`; the fade is separate */
   gint          index;
 };
 
@@ -62,7 +63,7 @@ is_horizontal (UnityPinnedAppsReorder *self)
 static gboolean
 is_tile (GtkWidget *widget)
 {
-  return widget != NULL && UNITY_IS_LAUNCHER_TILE (widget);
+  return widget != NULL && UNITY_IS_LAUNCHER_APP_TILE (widget);
 }
 
 static gint
@@ -86,12 +87,28 @@ rect_main_mid (UnityPinnedAppsReorder *self, const graphene_rect_t *b)
                               : b->origin.y + b->size.height / 2.0;
 }
 
+/* The nth tile, skipping @skip. Every index here is measured in the order the
+ * dragged tile has already left, so a slot needs no later correction. */
 static GtkWidget *
-nth_tile (UnityPinnedAppsReorder *self, gint n)
+nth_tile (UnityPinnedAppsReorder *self, gint n, GtkWidget *skip)
 {
   for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self->strip));
        c != NULL; c = gtk_widget_get_next_sibling (c))
-    if (is_tile (c) && n-- == 0)
+    if (is_tile (c) && c != skip && n-- == 0)
+      return c;
+  return NULL;
+}
+
+static GtkWidget *
+tile_for_app_id (UnityPinnedAppsReorder *self, const gchar *app_id)
+{
+  if (app_id == NULL || *app_id == '\0')
+    return NULL;
+
+  for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self->strip));
+       c != NULL; c = gtk_widget_get_next_sibling (c))
+    if (is_tile (c) &&
+        g_strcmp0 (unity_launcher_app_tile_get_app_id (UNITY_LAUNCHER_APP_TILE (c)), app_id) == 0)
       return c;
   return NULL;
 }
@@ -99,7 +116,7 @@ nth_tile (UnityPinnedAppsReorder *self, gint n)
 static gint
 slot_extent (UnityPinnedAppsReorder *self)
 {
-  GtkWidget *t = nth_tile (self, 0);
+  GtkWidget *t = nth_tile (self, 0, NULL);
   if (t == NULL)
     return 0;
   gint e = tile_main_extent (self, t);
@@ -135,6 +152,13 @@ remove_placeholder (UnityPinnedAppsReorder *self)
       gtk_box_remove (self->strip, self->placeholder);
       self->placeholder = NULL;
     }
+  /* A previous fade may still hold a child of the strip; cancelling the fade
+   * loses its `done` callback, so unparent it here. */
+  if (self->fading != NULL)
+    {
+      gtk_box_remove (self->strip, self->fading);
+      self->fading = NULL;
+    }
   self->index = -1;
 }
 
@@ -142,16 +166,20 @@ static void
 fade_out_done (AdwAnimation *anim, gpointer data)
 {
   (void) anim;
-  GtkWidget *ph     = data;
-  GtkWidget *parent = gtk_widget_get_parent (ph);
-  if (parent != NULL)
-    gtk_box_remove (GTK_BOX (parent), ph);
+  UnityPinnedAppsReorder *self = data;
+  if (self->fading != NULL)
+    {
+      gtk_box_remove (self->strip, self->fading);
+      self->fading = NULL;
+    }
 }
 
 static void
 fade_out_placeholder (UnityPinnedAppsReorder *self)
 {
   GtkWidget *ph = self->placeholder;
+
+  /* Cancel the show animation, if it is still running on the same widget. */
   if (self->anim != NULL)
     {
       adw_animation_reset (self->anim);
@@ -162,17 +190,29 @@ fade_out_placeholder (UnityPinnedAppsReorder *self)
   if (ph == NULL)
     return;
 
-  AdwAnimationTarget *t = adw_callback_animation_target_new (anim_cb, ph, NULL);
+  /* A previous fade may still be running; drop its widget so the new fade owns
+   * the only strip child in flight. */
+  if (self->fading != NULL)
+    {
+      gtk_box_remove (self->strip, self->fading);
+      self->fading = NULL;
+    }
+  self->fading = ph;
+
+  AdwAnimationTarget *t = adw_callback_animation_target_new (anim_cb, g_object_ref (ph),
+                                                             g_object_unref);
   AdwAnimation *a = adw_timed_animation_new (ph, gtk_widget_get_opacity (ph), 0.0,
                                              PLACEHOLDER_MS, t);
   adw_timed_animation_set_easing (ADW_TIMED_ANIMATION (a), ADW_EASE_OUT_QUAD);
-  g_signal_connect (a, "done", G_CALLBACK (fade_out_done), ph);
-  self->anim = a;
+  g_signal_connect (a, "done", G_CALLBACK (fade_out_done), self);
+  /* The animation is not stored on self; it holds itself through play and drops
+   * its reference in done, so remove_placeholder can never reset it. */
   adw_animation_play (a);
+  g_object_unref (a);
 }
 
 static void
-show_placeholder (UnityPinnedAppsReorder *self, gint idx)
+show_placeholder (UnityPinnedAppsReorder *self, gint idx, GtkWidget *source)
 {
   if (idx == self->index)
     return;
@@ -182,7 +222,7 @@ show_placeholder (UnityPinnedAppsReorder *self, gint idx)
   if (idx < 0)
     return;
 
-  GtkWidget *t0 = nth_tile (self, 0);
+  GtkWidget *t0 = nth_tile (self, 0, NULL);
 
   PlaceholderSlot *slot = g_new0 (PlaceholderSlot, 1);
   slot->main_size   = slot_extent (self);
@@ -193,7 +233,7 @@ show_placeholder (UnityPinnedAppsReorder *self, gint idx)
   gtk_widget_add_css_class (ph, "drag-placeholder");
   g_object_set_data_full (G_OBJECT (ph), "placeholder-slot", slot, g_free);
 
-  GtkWidget *after = idx > 0 ? nth_tile (self, idx - 1) : NULL;
+  GtkWidget *after = idx > 0 ? nth_tile (self, idx - 1, source) : NULL;
   gtk_box_insert_child_after (self->strip, ph, after);
   self->placeholder = ph;
   self->index       = idx;
@@ -201,7 +241,8 @@ show_placeholder (UnityPinnedAppsReorder *self, gint idx)
   if (first)
     {
       anim_cb (0.0, ph);
-      AdwAnimationTarget *t = adw_callback_animation_target_new (anim_cb, ph, NULL);
+      AdwAnimationTarget *t = adw_callback_animation_target_new (anim_cb, g_object_ref (ph),
+                                                                 g_object_unref);
       AdwAnimation *a = adw_timed_animation_new (ph, 0.0, 1.0, PLACEHOLDER_MS, t);
       adw_timed_animation_set_easing (ADW_TIMED_ANIMATION (a), ADW_EASE_OUT_QUAD);
       self->anim = a;
@@ -213,26 +254,33 @@ show_placeholder (UnityPinnedAppsReorder *self, gint idx)
     }
 }
 
+/* The slot the pointer names. A tile lands in the pinned run, so the count ends
+ * where that run does: past it the slot is the end of it, and a drop there pins
+ * the app last. The dragged tile is skipped before that test, so an unpinned one
+ * does not end its own count. */
 static gint
-pinned_index_of (UnityPinnedAppsReorder *self, const gchar *app_id)
+drop_slot (UnityPinnedAppsReorder *self, gdouble coord, GtkWidget *source)
 {
-  gint i = 0;
+  gint slot = 0;
   for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self->strip));
        c != NULL; c = gtk_widget_get_next_sibling (c))
     {
-      if (!is_tile (c))
+      graphene_rect_t b;
+      if (!is_tile (c) || c == source ||
+          !gtk_widget_compute_bounds (c, GTK_WIDGET (self->strip), &b))
         continue;
-      if (!unity_launcher_tile_get_pinned (UNITY_LAUNCHER_TILE (c)))
+      if (!unity_launcher_app_tile_get_pinned (UNITY_LAUNCHER_APP_TILE (c)) ||
+          coord <= rect_main_mid (self, &b))
         break;
-      if (g_strcmp0 (unity_launcher_tile_get_app_id (UNITY_LAUNCHER_TILE (c)), app_id) == 0)
-        return i;
-      i++;
+      slot++;
     }
-  return -1;
+  return slot;
 }
 
+/* The slot the dragged tile already holds, or -1 when it holds none because it
+ * is not pinned yet. A drop on its own slot changes nothing. */
 static gint
-pinned_slot_for_coord (UnityPinnedAppsReorder *self, gdouble coord)
+source_slot (UnityPinnedAppsReorder *self, GtkWidget *source)
 {
   gint slot = 0;
   for (GtkWidget *c = gtk_widget_get_first_child (GTK_WIDGET (self->strip));
@@ -240,24 +288,13 @@ pinned_slot_for_coord (UnityPinnedAppsReorder *self, gdouble coord)
     {
       if (!is_tile (c))
         continue;
-      if (!unity_launcher_tile_get_pinned (UNITY_LAUNCHER_TILE (c)))
+      if (!unity_launcher_app_tile_get_pinned (UNITY_LAUNCHER_APP_TILE (c)))
         break;
-      graphene_rect_t b;
-      if (!gtk_widget_compute_bounds (c, GTK_WIDGET (self->strip), &b))
-        continue;
-      if (coord > rect_main_mid (self, &b))
-        slot++;
-      else
-        break;
+      if (c == source)
+        return slot;
+      slot++;
     }
-  return slot;
-}
-
-static gint
-slot_to_dest (UnityPinnedAppsReorder *self, gint slot, const gchar *source)
-{
-  gint src_idx = pinned_index_of (self, source);
-  return (src_idx >= 0 && slot > src_idx) ? slot - 1 : slot;
+  return -1;
 }
 
 static GdkDragAction
@@ -270,16 +307,25 @@ on_drag_motion (GtkDropTarget *target, gdouble x, gdouble y, gpointer data)
     return GDK_ACTION_MOVE;
 
   const GValue *value  = gtk_drop_target_get_value (target);
-  const gchar  *source = (value != NULL && G_VALUE_HOLDS_STRING (value))
-                         ? g_value_get_string (value) : NULL;
+  GtkWidget    *source = tile_for_app_id (self, (value != NULL && G_VALUE_HOLDS_STRING (value))
+                                                ? g_value_get_string (value) : NULL);
 
-  if (source == NULL || pinned_index_of (self, source) < 0)
+  /* Only a tile of this strip can be placed in it. */
+  if (source == NULL)
     {
-      show_placeholder (self, -1);
+      show_placeholder (self, -1, NULL);
       return 0;
     }
 
-  show_placeholder (self, pinned_slot_for_coord (self, is_horizontal (self) ? x : y));
+  /* Open no gap where the tile already sits: the drop would do nothing. */
+  gint slot = drop_slot (self, is_horizontal (self) ? x : y, source);
+  if (slot == source_slot (self, source))
+    {
+      show_placeholder (self, -1, NULL);
+      return 0;
+    }
+
+  show_placeholder (self, slot, source);
   return GDK_ACTION_MOVE;
 }
 
@@ -293,23 +339,18 @@ on_drag_leave (GtkDropTarget *target, gpointer data)
 static gboolean
 on_drop (GtkDropTarget *target, const GValue *value, gdouble x, gdouble y, gpointer data)
 {
-  (void) target;
+  (void) target; (void) x; (void) y;
   UnityPinnedAppsReorder *self = data;
 
-  const gchar *source = G_VALUE_HOLDS_STRING (value) ? g_value_get_string (value) : NULL;
-  if (source == NULL || pinned_index_of (self, source) < 0)
-    {
-      remove_placeholder (self);
-      return FALSE;
-    }
-
-  gdouble coord = is_horizontal (self) ? x : y;
-  gint slot = self->index >= 0 ? self->index : pinned_slot_for_coord (self, coord);
-  gint dest = slot_to_dest (self, slot, source);
+  const gchar *app_id = G_VALUE_HOLDS_STRING (value) ? g_value_get_string (value) : NULL;
+  gint         dest   = self->index;
 
   remove_placeholder (self);
+  if (app_id == NULL || dest < 0)
+    return FALSE;
+
   gtk_widget_activate_action (GTK_WIDGET (self->strip), UNITY_LAUNCHER_ACTION_REORDER,
-                              "(si)", source, dest);
+                              "(si)", app_id, dest);
   return TRUE;
 }
 

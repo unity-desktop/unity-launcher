@@ -33,7 +33,8 @@ G_BEGIN_DECLS
  * placeholder as the pointer moves and, on drop, activates the launcher's
  * `reorder-pinned` action with the source id and the destination index.
  */
-G_DECLARE_FINAL_TYPE (UnityPinnedAppsReorder, unity_pinned_apps_reorder, UNITY, PINNED_APPS_REORDER, GObject)
+G_DECLARE_FINAL_TYPE (UnityPinnedAppsReorder, unity_pinned_apps_reorder,
+                      UNITY, PINNED_APPS_REORDER, GObject)
 
 /**
  * unity_pinned_apps_reorder_new:

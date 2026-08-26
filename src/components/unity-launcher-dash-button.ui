@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <template class="UnityLauncherDashButton" parent="GtkButton">
+    <property name="action-name">app.toggle-dash</property>
+    <property name="tooltip-text" translatable="yes">Show Applications</property>
+    <property name="halign">center</property>
+    <property name="valign">center</property>
+    <style>
+      <class name="suggested-action"/>
+      <class name="action"/>
+    </style>
+    <property name="child">
+      <object class="GtkImage" id="image">
+        <property name="icon-name">start-here-symbolic</property>
+      </object>
+    </property>
+  </template>
+</interface>

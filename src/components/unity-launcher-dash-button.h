@@ -1,4 +1,4 @@
-/* unity-settings.h
+/* unity-launcher-dash-button.h
  *
  * Copyright 2026 Muqtadir
  *
@@ -20,27 +20,19 @@
 
 #pragma once
 
-#include <gio/gio.h>
+#include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
-/* The keys of the "org.unity.launcher" schema. */
-#define UNITY_LAUNCHER_KEY_POSITION            "position"
-#define UNITY_LAUNCHER_KEY_HIDE                "hide"
-#define UNITY_LAUNCHER_KEY_TILE_ALIGNMENT      "tile-alignment"
-#define UNITY_LAUNCHER_KEY_PINNED_APPS         "pinned-apps"
-#define UNITY_LAUNCHER_KEY_LAUNCHER_ICON_SIZE  "launcher-icon-size"
-#define UNITY_LAUNCHER_KEY_DASH_ICON_SIZE      "dash-icon-size"
-#define UNITY_LAUNCHER_KEY_DASH_MAXIMIZED      "dash-maximized"
+#define UNITY_TYPE_LAUNCHER_DASH_BUTTON (unity_launcher_dash_button_get_type ())
 
 /**
- * unity_settings_get_default:
+ * UnityLauncherDashButton:
  *
- * Gets the shared #GSettings for "org.unity.launcher". It is made the first time
- * it is asked for, then reused.
- *
- * Returns: (transfer none): the shared #GSettings.
+ * The launcher's Show-Applications button: a symbolic that toggles the dash and
+ * sizes to the launcher icon size.
  */
-GSettings *unity_settings_get_default (void);
+G_DECLARE_FINAL_TYPE (UnityLauncherDashButton, unity_launcher_dash_button,
+                      UNITY, LAUNCHER_DASH_BUTTON, GtkButton)
 
 G_END_DECLS

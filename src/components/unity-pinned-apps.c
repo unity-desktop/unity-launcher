@@ -20,6 +20,8 @@
 
 #include "components/unity-pinned-apps.h"
 
+#include "unity-settings.h"
+
 void
 unity_pinned_apps_toggle (GSettings *settings, const gchar *app_id)
 {
@@ -43,6 +45,26 @@ unity_pinned_apps_toggle (GSettings *settings, const gchar *app_id)
                        (const gchar *const *) next->pdata);
 }
 
+void
+unity_pinned_apps_insert (GSettings *settings, const gchar *app_id, gint index)
+{
+  if (app_id == NULL || *app_id == '\0')
+    return;
+
+  g_auto (GStrv)        ids  = g_settings_get_strv (settings, UNITY_LAUNCHER_KEY_PINNED_APPS);
+  g_autoptr (GPtrArray) next = g_ptr_array_new_with_free_func (g_free);
+
+  for (gchar **p = ids; p && *p; p++)
+    if (g_strcmp0 (*p, app_id) != 0)
+      g_ptr_array_add (next, g_strdup (*p));
+
+  g_ptr_array_insert (next, CLAMP (index, 0, (gint) next->len), g_strdup (app_id));
+  g_ptr_array_add (next, NULL);
+
+  g_settings_set_strv (settings, UNITY_LAUNCHER_KEY_PINNED_APPS,
+                       (const gchar *const *) next->pdata);
+}
+
 gboolean
 unity_pinned_apps_contains (GSettings *settings, const gchar *app_id)
 {
@@ -50,8 +72,5 @@ unity_pinned_apps_contains (GSettings *settings, const gchar *app_id)
     return FALSE;
 
   g_auto (GStrv) ids = g_settings_get_strv (settings, UNITY_LAUNCHER_KEY_PINNED_APPS);
-  for (gchar **p = ids; p && *p; p++)
-    if (g_strcmp0 (*p, app_id) == 0)
-      return TRUE;
-  return FALSE;
+  return ids != NULL && g_strv_contains ((const gchar *const *) ids, app_id);
 }

@@ -1,7 +1,6 @@
 unity-launcher {
   background-color: var(--dark-5);
   color: var(--light-1);
-  padding: 6px;
   box-shadow: 0 0 8px 0 alpha(var(--dark-5), 0.5);
 }
 
@@ -10,9 +9,10 @@ unity-launcher.pos-right  { border-left:  1px solid alpha(var(--light-1), 0.22);
 unity-launcher.pos-bottom { border-top:   1px solid alpha(var(--light-1), 0.22); }
 
 
+/* The 3px padding lifts the icon-sized child to the tile footprint. */
 unity-launcher button.action {
   border-radius: 6px;
-  padding: 0;
+  padding: 3px;
   min-width: 0;
   min-height: 0;
 }
@@ -25,15 +25,15 @@ unity-launcher :drop(active) {
   border-color: transparent;
 }
 
-unity-launcher tile { border-radius: 6px; }
-unity-launcher tile:hover  { background-color: alpha(currentColor, 0.22); }
-unity-launcher tile:active { background-color: alpha(currentColor, 0.33); }
-unity-launcher tile.active,
-unity-launcher tile.active:hover { background-color: alpha(var(--light-1), 0.35); }
+unity-launcher unity-launcher-tile { border-radius: 6px; }
+unity-launcher unity-launcher-tile:hover  { background-color: alpha(currentColor, 0.22); }
+unity-launcher unity-launcher-tile:active { background-color: alpha(currentColor, 0.33); }
+unity-launcher unity-launcher-tile.active,
+unity-launcher unity-launcher-tile.active:hover { background-color: alpha(var(--light-1), 0.35); }
 
 /* Running indicator. A small currentColor dot below the icon. Opacity is driven
  * from C so the dot keeps its layout slot when hidden and the icon never jitters. */
-unity-launcher tile .running-dot {
+unity-launcher unity-launcher-tile .running-dot {
   min-width: 6px;
   min-height: 3px;
   background-color: currentColor;
@@ -75,9 +75,9 @@ unity-dash .labels > .heading {
   font-weight: normal;
 }
 
-/* Dash tiles (dashtile): the browse grid and the search matches. Flat, with a
+/* Dash tiles (unity-dash-tile): the browse grid and the search matches. Flat, with a
  * rounded hover/active wash and a keyboard focus ring. */
-dashtile {
+unity-dash-tile {
   outline: none;
   border: none;
   box-shadow: none;
@@ -85,9 +85,10 @@ dashtile {
   padding: 9px;
   border-radius: 9px;
 }
-dashtile:hover  { background-color: alpha(currentColor, 0.10); }
-dashtile:active { background-color: alpha(currentColor, 0.22); }
-dashtile:focus-visible {
+unity-dash-tile:hover  { background-color: alpha(currentColor, 0.10); }
+unity-dash-tile:active { background-color: alpha(currentColor, 0.22); }
+unity-dash-tile:focus-visible {
+  background-color: alpha(currentColor, 0.10);
   outline: 2px solid var(--accent-color);
   outline-offset: -1px;
 }

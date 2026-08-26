@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.0"/>
   <template class="UnityLauncher" parent="AstalWindow">
     <property name="namespace">unity-launcher</property>
     <property name="layer">top</property>
@@ -7,31 +9,16 @@
     <property name="keymode">none</property>
     <child>
       <object class="GtkBox" id="content">
+        <property name="margin-top">6</property>
+        <property name="margin-bottom">6</property>
+        <property name="margin-start">6</property>
+        <property name="margin-end">6</property>
+        <property name="spacing">12</property>
         <child>
-          <object class="GtkButton" id="dash_button">
-            <property name="action-name">app.toggle-dash</property>
-            <property name="tooltip-text" translatable="yes">Show Applications</property>
-            <property name="halign">center</property>
-            <property name="valign">center</property>
-            <property name="child">
-              <object class="GtkImage" id="dash_image">
-                <property name="icon-name">start-here-symbolic</property>
-              </object>
-            </property>
-            <style>
-              <class name="suggested-action"/>
-              <class name="action"/>
-            </style>
-          </object>
+          <object class="UnityLauncherDashButton"/>
         </child>
         <child>
-          <object class="GtkScrolledWindow" id="scroller">
-            <property name="child">
-              <object class="GtkBox" id="strip">
-                <property name="spacing">6</property>
-              </object>
-            </property>
-          </object>
+          <object class="UnityLauncherAppStrip" id="app_strip"/>
         </child>
       </object>
     </child>
