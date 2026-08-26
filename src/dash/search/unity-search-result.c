@@ -24,15 +24,15 @@
 
 struct _UnitySearchResult
 {
-  GObject                   parent_instance;
+  GObject              parent_instance;
 
   UnitySearchProvider *provider;
-  gchar                    *id;
-  gchar                    *name;
-  gchar                    *description;
-  gchar                    *clipboard_text;
-  GIcon                    *gicon;
-  GStrv                     terms;
+  gchar               *id;
+  gchar               *name;
+  gchar               *description;
+  gchar               *clipboard_text;
+  GIcon               *gicon;
+  GStrv                terms;
 };
 
 G_DEFINE_FINAL_TYPE (UnitySearchResult, unity_search_result, G_TYPE_OBJECT)
@@ -55,13 +55,6 @@ unity_search_result_new (UnitySearchProvider *provider,
   self->gicon          = gicon ? g_object_ref (gicon) : NULL;
   self->terms          = g_strdupv ((gchar **) terms);
   return self;
-}
-
-const gchar *
-unity_search_result_get_id (UnitySearchResult *self)
-{
-  g_return_val_if_fail (UNITY_IS_SEARCH_RESULT (self), NULL);
-  return self->id;
 }
 
 const gchar *

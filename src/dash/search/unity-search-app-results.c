@@ -22,7 +22,7 @@
 
 #include <astal-apps.h>
 
-#include "components/unity-dash-tile.h"
+#include "components/unity-dash-app-tile.h"
 #include "dash/unity-dash-grid-layout.h"
 #include "unity-app-catalog.h"
 #include "unity-settings.h"
@@ -58,7 +58,7 @@ unity_search_app_results_fill (UnitySearchAppResults *self, const gchar *query)
   guint i = 0;
   for (GList *l = apps; l != NULL; l = l->next, i++)
     {
-      GtkWidget *tile = unity_dash_tile_new (l->data);
+      GtkWidget *tile = unity_dash_app_tile_new (l->data);
       g_settings_bind (self->settings, UNITY_LAUNCHER_KEY_DASH_ICON_SIZE,
                        tile, "icon-size", G_SETTINGS_BIND_GET);
       gtk_box_append (self->tiles, tile);

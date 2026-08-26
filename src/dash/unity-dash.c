@@ -20,34 +20,42 @@
 
 #include "dash/unity-dash.h"
 
+#include <gdk/gdkkeysyms.h>
+
 #include "components/unity-dismiss.h"
 #include "dash/unity-dash-apps.h"
-#include "dash/unity-dash-search-controller.h"
 #include "dash/unity-dash-search.h"
 #include "unity-position.h"
 #include "unity-settings.h"
 
-#define UNITY_LAUNCHER_KEY_DASH_MAXIMIZED "dash-maximized"
-
 #define POPOVER_NUM 2
 #define POPOVER_DEN 3
 
+#define PAGE_APPS   "apps"
+#define PAGE_SEARCH "search"
+
+typedef enum
+{
+  PROP_LAUNCHER_INSET = 1,
+} UnityDashProperty;
+static GParamSpec *properties[PROP_LAUNCHER_INSET + 1];
+
 struct _UnityDash
 {
-  AstalWindow                  parent_instance;
+  AstalWindow                parent_instance;
 
-  GSettings                   *settings;
-  UnityDashSearchController *search;
+  GSettings                 *settings;
 
-  AdwBin          *area;
-  AdwToolbarView  *panel;
-  GtkSearchEntry  *entry;
-  AdwViewStack    *stack;
-  UnityDashApps   *apps_page;
-  UnityDashSearch *search_page;
+  AdwBin                    *area;
+  AdwToolbarView            *panel;
+  GtkSearchEntry            *entry;
+  AdwViewStack              *stack;
+  UnityDashApps             *apps_page;
+  UnityDashSearch           *search_page;
 
-  gboolean         fullscreen;
-  gboolean         suppress_dismiss;  /* guards the hide/re-present in the maximize toggle */
+  gboolean                   fullscreen;
+  gboolean                   suppress_dismiss;  /* guards the hide/re-present in the maximize toggle */
+  gint                       launcher_inset;
 };
 
 /* A layer-shell overlay is used instead of a GtkPopover, because a popover
@@ -55,8 +63,25 @@ struct _UnityDash
 G_DEFINE_FINAL_TYPE (UnityDash, unity_dash, ASTAL_TYPE_WINDOW)
 
 static void
+apply_launcher_inset (UnityDash *self)
+{
+  UnityPosition pos   = g_settings_get_enum (self->settings, UNITY_LAUNCHER_KEY_POSITION);
+  gint          inset = self->launcher_inset;
+
+  g_object_set (self, "margin-left", 0, "margin-right", 0,
+                "margin-top", 0, "margin-bottom", 0, NULL);
+  if (inset > 0)
+    g_object_set (self, unity_position_edge_margin (pos), inset, NULL);
+}
+
+static void
 apply_layout (UnityDash *self)
 {
+  if (!gtk_widget_get_realized (GTK_WIDGET (self)))
+    return;
+
+  apply_launcher_inset (self);
+
   GtkWidget *panel = GTK_WIDGET (self->panel);
 
   if (self->fullscreen)
@@ -80,7 +105,7 @@ apply_layout (UnityDash *self)
   gtk_widget_set_vexpand (panel, FALSE);
 
   GdkRectangle geo = { 0, 0, 0, 0 };
-  GdkMonitor  *monitor = astal_window_get_current_monitor (ASTAL_WINDOW (self));
+  g_autoptr (GdkMonitor) monitor = astal_window_get_current_monitor (ASTAL_WINDOW (self));
   if (monitor != NULL)
     gdk_monitor_get_geometry (monitor, &geo);
   if (geo.width > 0 && geo.height > 0)
@@ -145,15 +170,6 @@ on_toggle_maximized_action (GtkWidget *widget, const gchar *name, GVariant *para
   self->suppress_dismiss = FALSE;
 }
 
-/* A launching descendant activates dash.close to dismiss the dash. GTK walks up
- * the widget tree to find the action installed here. */
-static void
-on_dash_close_action (GtkWidget *widget, const gchar *name, GVariant *param)
-{
-  (void) name; (void) param;
-  unity_dash_close (UNITY_DASH (widget));
-}
-
 static void
 on_grid_map (GtkWidget *widget, gpointer user_data)
 {
@@ -185,6 +201,49 @@ unity_dash_new (GtkApplication *app)
   return g_object_new (UNITY_TYPE_DASH, "application", app, NULL);
 }
 
+static void
+on_search_changed (GtkSearchEntry *entry, gpointer user_data)
+{
+  UnityDash   *self = user_data;
+  const gchar *text = gtk_editable_get_text (GTK_EDITABLE (entry));
+  gboolean     empty = (text == NULL || *text == '\0');
+
+  if (empty)
+    {
+      unity_dash_search_reset (self->search_page);
+      adw_view_stack_set_visible_child_name (self->stack, PAGE_APPS);
+      return;
+    }
+
+  adw_view_stack_set_visible_child_name (self->stack, PAGE_SEARCH);
+  unity_dash_search_run (self->search_page, text);
+}
+
+static void
+on_entry_activate (GtkSearchEntry *entry, gpointer user_data)
+{
+  (void) entry;
+  UnityDash *self = user_data;
+  if (g_strcmp0 (adw_view_stack_get_visible_child_name (self->stack), PAGE_SEARCH) == 0)
+    unity_dash_search_activate_selected (self->search_page);
+}
+
+static gboolean
+on_entry_key (GtkEventControllerKey *key, guint keyval, guint keycode,
+              GdkModifierType state, gpointer user_data)
+{
+  (void) key; (void) keycode; (void) state;
+  UnityDash *self = user_data;
+
+  if (keyval == GDK_KEY_Down &&
+      g_strcmp0 (adw_view_stack_get_visible_child_name (self->stack), PAGE_SEARCH) == 0)
+    {
+      unity_dash_search_focus_results (self->search_page);
+      return GDK_EVENT_STOP;
+    }
+  return GDK_EVENT_PROPAGATE;
+}
+
 void
 unity_dash_reset (UnityDash *self)
 {
@@ -194,7 +253,10 @@ unity_dash_reset (UnityDash *self)
     self->settings, UNITY_LAUNCHER_KEY_DASH_MAXIMIZED);
   apply_layout (self);
 
-  unity_dash_search_controller_reset (self->search);
+  unity_dash_search_reset (self->search_page);
+  adw_view_stack_set_visible_child_name (self->stack, PAGE_APPS);
+  gtk_editable_set_text (GTK_EDITABLE (self->entry), "");
+
   unity_dash_apps_reset (self->apps_page);
   gtk_widget_grab_focus (GTK_WIDGET (self->entry));
 }
@@ -230,18 +292,52 @@ unity_dash_toggle (UnityDash *self)
 static void
 unity_dash_dispose (GObject *object)
 {
-  UnityDash *self = UNITY_DASH (object);
-  g_clear_object (&self->search);
-  G_OBJECT_CLASS (unity_dash_parent_class)->dispose (object);
   gtk_widget_dispose_template (GTK_WIDGET (object), UNITY_TYPE_DASH);
+  G_OBJECT_CLASS (unity_dash_parent_class)->dispose (object);
+}
+
+static void
+unity_dash_set_property (GObject *object, guint id, const GValue *value, GParamSpec *pspec)
+{
+  UnityDash *self = UNITY_DASH (object);
+  switch ((UnityDashProperty) id)
+    {
+    case PROP_LAUNCHER_INSET:
+      self->launcher_inset = g_value_get_int (value);
+      if (gtk_widget_get_realized (GTK_WIDGET (self)))
+        apply_launcher_inset (self);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, pspec);
+    }
+}
+
+static void
+unity_dash_get_property (GObject *object, guint id, GValue *value, GParamSpec *pspec)
+{
+  UnityDash *self = UNITY_DASH (object);
+  switch ((UnityDashProperty) id)
+    {
+    case PROP_LAUNCHER_INSET: g_value_set_int (value, self->launcher_inset); break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, pspec);
+    }
 }
 
 static void
 unity_dash_class_init (UnityDashClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+  GObjectClass   *object_class = G_OBJECT_CLASS (klass);
 
-  G_OBJECT_CLASS (klass)->dispose = unity_dash_dispose;
+  object_class->dispose      = unity_dash_dispose;
+  object_class->set_property = unity_dash_set_property;
+  object_class->get_property = unity_dash_get_property;
+
+  properties[PROP_LAUNCHER_INSET] = g_param_spec_int (
+    "launcher-inset", NULL, NULL, 0, G_MAXINT, 0,
+    G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 
   g_type_ensure (UNITY_TYPE_DASH_APPS);
   g_type_ensure (UNITY_TYPE_DASH_SEARCH);
@@ -263,7 +359,17 @@ unity_dash_class_init (UnityDashClass *klass)
   gtk_widget_class_install_action (widget_class, "window.toggle-maximized", NULL, on_toggle_maximized_action);
 
   /* Descendants launch through this to dismiss the dash. */
-  gtk_widget_class_install_action (widget_class, "dash.close", NULL, on_dash_close_action);
+  gtk_widget_class_install_action (widget_class, "dash.close",              NULL, on_close_action);
+
+  gtk_widget_class_add_binding_action (widget_class,
+                                       GDK_KEY_Escape, 0,
+                                       "window.minimize", NULL);
+  gtk_widget_class_add_binding_action (widget_class,
+                                       GDK_KEY_w, GDK_CONTROL_MASK,
+                                       "window.close", NULL);
+  gtk_widget_class_add_binding_action (widget_class,
+                                       GDK_KEY_F4, GDK_ALT_MASK,
+                                       "window.close", NULL);
 }
 
 static void
@@ -271,12 +377,23 @@ unity_dash_init (UnityDash *self)
 {
   self->settings = unity_settings_get_default ();
 
+  g_object_set_data (G_OBJECT (self), UNITY_DASH_WINDOW_ROLE_KEY,
+                     (gpointer) g_intern_static_string (UNITY_DASH_WINDOW_ROLE));
+
   gtk_widget_init_template (GTK_WIDGET (self));
 
   gtk_search_entry_set_key_capture_widget (self->entry, GTK_WIDGET (self));
 
-  self->search = unity_dash_search_controller_new (
-    self->entry, self->stack, self->search_page);
+  g_signal_connect_object (self->entry, "search-changed",
+                           G_CALLBACK (on_search_changed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->entry, "activate",
+                           G_CALLBACK (on_entry_activate),  self, G_CONNECT_DEFAULT);
+
+  GtkEventController *entry_key = gtk_event_controller_key_new ();
+  gtk_event_controller_set_propagation_phase (entry_key, GTK_PHASE_CAPTURE);
+  g_signal_connect_object (entry_key, "key-pressed",
+                           G_CALLBACK (on_entry_key), self, G_CONNECT_DEFAULT);
+  gtk_widget_add_controller (GTK_WIDGET (self->entry), entry_key);
 
   g_signal_connect (self, "map", G_CALLBACK (on_grid_map), NULL);
   g_signal_connect_object (self->settings, "changed::" UNITY_LAUNCHER_KEY_POSITION,

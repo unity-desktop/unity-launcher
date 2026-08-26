@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <gtk/gtk.h>
+#include <gio/gio.h>
 
 #include "dash/search/unity-search-provider.h"
 
@@ -50,12 +50,11 @@ UnitySearch *unity_search_get_default (void);
  * unity_search_query:
  * @self: a #UnitySearch.
  * @query: the text to search for.
- * @limit: the most results to ask each provider for, or 0 for the default.
  *
  * Runs @query on every provider. Results come back through the
  * UnitySearch::provider-results signal, once for each provider that answers. An
  * empty or %NULL query cancels the current search and sends nothing.
  */
-void unity_search_query (UnitySearch *self, const gchar *query, guint limit);
+void unity_search_query (UnitySearch *self, const gchar *query);
 
 G_END_DECLS

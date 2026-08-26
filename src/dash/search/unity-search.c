@@ -75,7 +75,7 @@ split_terms (const gchar *query)
 }
 
 void
-unity_search_query (UnitySearch *self, const gchar *query, guint limit)
+unity_search_query (UnitySearch *self, const gchar *query)
 {
   g_return_if_fail (UNITY_IS_SEARCH (self));
 
@@ -96,7 +96,7 @@ unity_search_query (UnitySearch *self, const gchar *query, guint limit)
   for (GList *l = self->providers; l != NULL; l = l->next)
     unity_search_provider_query_async (
       l->data, (const gchar *const *) terms,
-      limit > 0 ? limit : RESULTS_PER_PROVIDER,
+      RESULTS_PER_PROVIDER,
       self->cancellable, on_provider_query_done, self);
 }
 

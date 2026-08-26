@@ -33,12 +33,12 @@ struct _UnitySearchProvider
   gchar           *bus_name;
   gchar           *object_path;
   gchar           *app_id;
-  gboolean         default_enabled; /* !DefaultDisabled from the keyfile */
+  gboolean         default_enabled;  /* !DefaultDisabled from the keyfile */
   GDesktopAppInfo *app_info;
   GDBusProxy      *proxy;
 
-  GStrv            last_terms;      /* terms of the last completed query */
-  GStrv            last_ids;        /* its result ids, for GetSubsearchResultSet */
+  GStrv            last_terms;       /* terms of the last completed query */
+  GStrv            last_ids;         /* its result ids, for GetSubsearchResultSet */
 };
 
 G_DEFINE_FINAL_TYPE (UnitySearchProvider, unity_search_provider, G_TYPE_OBJECT)
@@ -221,17 +221,10 @@ unity_search_provider_get_name (UnitySearchProvider *self)
   return self->app_info ? g_app_info_get_display_name (G_APP_INFO (self->app_info)) : NULL;
 }
 
-GIcon *
-unity_search_provider_get_gicon (UnitySearchProvider *self)
-{
-  g_return_val_if_fail (UNITY_IS_SEARCH_PROVIDER (self), NULL);
-  return self->app_info ? g_app_info_get_icon (G_APP_INFO (self->app_info)) : NULL;
-}
-
 typedef struct
 {
-  GStrv terms;
-  guint limit;
+  GStrv  terms;
+  guint  limit;
 } QueryData;
 
 static void
@@ -347,16 +340,14 @@ on_get_initial (GObject *source, GAsyncResult *res, gpointer user_data)
       return;
     }
 
-  GVariantBuilder capped;
-  g_variant_builder_init (&capped, G_VARIANT_TYPE ("as"));
-  for (gsize i = 0; i < n_ids && i < q->limit; i++)
-    g_variant_builder_add (&capped, "s", ids[i]);
-  g_free (ids);
+  if (n_ids > q->limit)
+    ids[q->limit] = NULL;
 
   g_dbus_proxy_call (self->proxy, "GetResultMetas",
-                     g_variant_new ("(as)", &capped),
+                     g_variant_new ("(^as)", ids),
                      G_DBUS_CALL_FLAGS_NONE, -1,
                      g_task_get_cancellable (task), on_get_metas, task);
+  g_free (ids);
 }
 
 /* If the new terms extend the last query, refine with GetSubsearchResultSet.
@@ -395,30 +386,20 @@ unity_search_provider_query_async (UnitySearchProvider *self,
       return;
     }
 
-  GVariantBuilder tb;
-  g_variant_builder_init (&tb, G_VARIANT_TYPE ("as"));
-  for (const gchar *const *t = terms; t && *t; t++)
-    g_variant_builder_add (&tb, "s", *t);
-
   /* Only refine when the previous query had results. Subsearching an empty set
    * would hide matches the longer query could still find. */
   if (self->last_ids != NULL && self->last_ids[0] != NULL
       && terms_extend (self->last_terms, terms))
     {
-      GVariantBuilder pb;
-      g_variant_builder_init (&pb, G_VARIANT_TYPE ("as"));
-      for (gchar **p = self->last_ids; p && *p; p++)
-        g_variant_builder_add (&pb, "s", *p);
-
       g_dbus_proxy_call (self->proxy, "GetSubsearchResultSet",
-                         g_variant_new ("(asas)", &pb, &tb),
+                         g_variant_new ("(^as^as)", self->last_ids, terms),
                          G_DBUS_CALL_FLAGS_NONE, -1,
                          cancellable, on_get_initial, g_steal_pointer (&task));
     }
   else
     {
       g_dbus_proxy_call (self->proxy, "GetInitialResultSet",
-                         g_variant_new ("(as)", &tb),
+                         g_variant_new ("(^as)", terms),
                          G_DBUS_CALL_FLAGS_NONE, -1,
                          cancellable, on_get_initial, g_steal_pointer (&task));
     }
@@ -442,13 +423,8 @@ unity_search_provider_activate_result (UnitySearchProvider *self,
   if (self->proxy == NULL)
     return;
 
-  GVariantBuilder tb;
-  g_variant_builder_init (&tb, G_VARIANT_TYPE ("as"));
-  for (const gchar *const *t = terms; t && *t; t++)
-    g_variant_builder_add (&tb, "s", *t);
-
   g_dbus_proxy_call (self->proxy, "ActivateResult",
-                     g_variant_new ("(sasu)", id, &tb, timestamp),
+                     g_variant_new ("(s^asu)", id, terms, timestamp),
                      G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
 }
 
@@ -461,13 +437,8 @@ unity_search_provider_launch_search (UnitySearchProvider *self,
   if (self->proxy == NULL)
     return;
 
-  GVariantBuilder tb;
-  g_variant_builder_init (&tb, G_VARIANT_TYPE ("as"));
-  for (const gchar *const *t = terms; t && *t; t++)
-    g_variant_builder_add (&tb, "s", *t);
-
   g_dbus_proxy_call (self->proxy, "LaunchSearch",
-                     g_variant_new ("(asu)", &tb, timestamp),
+                     g_variant_new ("(^asu)", terms, timestamp),
                      G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
 }
 

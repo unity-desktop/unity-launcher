@@ -77,7 +77,7 @@ unity_dash_search_run (UnityDashSearch *self, const gchar *query)
   unity_search_app_results_fill (self->apps, query);
   clear_provider_groups (self);
   update_placeholder (self);
-  unity_search_query (self->search, query, 0);
+  unity_search_query (self->search, query);
 }
 
 void
@@ -98,16 +98,10 @@ void
 unity_dash_search_reset (UnityDashSearch *self)
 {
   g_return_if_fail (UNITY_IS_DASH_SEARCH (self));
-  unity_search_query (self->search, NULL, 0);
+  unity_search_query (self->search, NULL);
   clear_provider_groups (self);
   unity_search_app_results_clear (self->apps);
   gtk_widget_set_visible (GTK_WIDGET (self->placeholder), FALSE);
-}
-
-GtkWidget *
-unity_dash_search_new (void)
-{
-  return g_object_new (UNITY_TYPE_DASH_SEARCH, NULL);
 }
 
 static void

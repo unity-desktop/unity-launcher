@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <gtk/gtk.h>
+#include <gio/gio.h>
 
 G_BEGIN_DECLS
 
@@ -51,21 +51,13 @@ typedef struct _UnitySearchProvider UnitySearchProvider;
  *
  * Returns: (transfer full): a new #UnitySearchResult.
  */
-UnitySearchResult *unity_search_result_new (UnitySearchProvider *provider,
-                                                       const gchar              *id,
-                                                       const gchar              *name,
-                                                       const gchar              *description,
-                                                       const gchar              *clipboard_text,
-                                                       GIcon                    *gicon,
-                                                       const gchar *const       *terms);
-
-/**
- * unity_search_result_get_id:
- * @self: a #UnitySearchResult.
- *
- * Returns: (transfer none): the result id.
- */
-const gchar *unity_search_result_get_id             (UnitySearchResult *self);
+UnitySearchResult *unity_search_result_new                (UnitySearchProvider *provider,
+                                                           const gchar         *id,
+                                                           const gchar         *name,
+                                                           const gchar         *description,
+                                                           const gchar         *clipboard_text,
+                                                           GIcon               *gicon,
+                                                           const gchar *const  *terms);
 
 /**
  * unity_search_result_get_name:
@@ -73,7 +65,7 @@ const gchar *unity_search_result_get_id             (UnitySearchResult *self);
  *
  * Returns: (transfer none): the result name.
  */
-const gchar *unity_search_result_get_name           (UnitySearchResult *self);
+const gchar       *unity_search_result_get_name           (UnitySearchResult *self);
 
 /**
  * unity_search_result_get_description:
@@ -81,7 +73,7 @@ const gchar *unity_search_result_get_name           (UnitySearchResult *self);
  *
  * Returns: (transfer none) (nullable): the description, or %NULL.
  */
-const gchar *unity_search_result_get_description     (UnitySearchResult *self);
+const gchar       *unity_search_result_get_description    (UnitySearchResult *self);
 
 /**
  * unity_search_result_get_clipboard_text:
@@ -89,7 +81,7 @@ const gchar *unity_search_result_get_description     (UnitySearchResult *self);
  *
  * Returns: (transfer none) (nullable): the text to copy, or %NULL.
  */
-const gchar *unity_search_result_get_clipboard_text  (UnitySearchResult *self);
+const gchar       *unity_search_result_get_clipboard_text (UnitySearchResult *self);
 
 /**
  * unity_search_result_get_gicon:
@@ -97,7 +89,7 @@ const gchar *unity_search_result_get_clipboard_text  (UnitySearchResult *self);
  *
  * Returns: (transfer none) (nullable): the icon, or %NULL.
  */
-GIcon       *unity_search_result_get_gicon           (UnitySearchResult *self);
+GIcon             *unity_search_result_get_gicon          (UnitySearchResult *self);
 
 /**
  * unity_search_result_get_terms:
@@ -114,7 +106,7 @@ const gchar *const *unity_search_result_get_terms    (UnitySearchResult *self);
  *
  * Activates the result through its provider.
  */
-void         unity_search_result_activate         (UnitySearchResult *self,
-                                                         guint32                 timestamp);
+void               unity_search_result_activate           (UnitySearchResult *self,
+                                                           guint32            timestamp);
 
 G_END_DECLS

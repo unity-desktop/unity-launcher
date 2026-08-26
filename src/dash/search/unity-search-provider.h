@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <gtk/gtk.h>
+#include <gio/gio.h>
 
 #include "dash/search/unity-search-result.h"
 
@@ -46,7 +46,7 @@ G_DECLARE_FINAL_TYPE (UnitySearchProvider, unity_search_provider,
  *
  * Returns: (transfer full) (element-type UnitySearchProvider): the providers.
  */
-GList *unity_search_provider_discover (void);
+GList       *unity_search_provider_discover        (void);
 
 /**
  * unity_search_provider_get_name:
@@ -56,17 +56,7 @@ GList *unity_search_provider_discover (void);
  *
  * Returns: (transfer none) (nullable): the name, or %NULL.
  */
-const gchar *unity_search_provider_get_name  (UnitySearchProvider *self);
-
-/**
- * unity_search_provider_get_gicon:
- * @self: a #UnitySearchProvider.
- *
- * Gets the icon of the provider's app.
- *
- * Returns: (transfer none) (nullable): the icon, or %NULL.
- */
-GIcon       *unity_search_provider_get_gicon (UnitySearchProvider *self);
+const gchar *unity_search_provider_get_name        (UnitySearchProvider *self);
 
 /**
  * unity_search_provider_query_async:
@@ -79,12 +69,12 @@ GIcon       *unity_search_provider_get_gicon (UnitySearchProvider *self);
  *
  * Starts a query on the provider.
  */
-void       unity_search_provider_query_async  (UnitySearchProvider *self,
-                                                     const gchar *const       *terms,
-                                                     guint                     limit,
-                                                     GCancellable             *cancellable,
-                                                     GAsyncReadyCallback       callback,
-                                                     gpointer                  user_data);
+void         unity_search_provider_query_async     (UnitySearchProvider *self,
+                                                    const gchar *const  *terms,
+                                                    guint                limit,
+                                                    GCancellable        *cancellable,
+                                                    GAsyncReadyCallback  callback,
+                                                    gpointer             user_data);
 
 /**
  * unity_search_provider_query_finish:
@@ -96,9 +86,9 @@ void       unity_search_provider_query_async  (UnitySearchProvider *self,
  *
  * Returns: (transfer full) (element-type UnitySearchResult): the results.
  */
-GPtrArray *unity_search_provider_query_finish (UnitySearchProvider *self,
-                                                     GAsyncResult             *result,
-                                                     GError                  **error);
+GPtrArray   *unity_search_provider_query_finish    (UnitySearchProvider *self,
+                                                    GAsyncResult        *result,
+                                                    GError              **error);
 
 /**
  * unity_search_provider_activate_result:
@@ -109,10 +99,10 @@ GPtrArray *unity_search_provider_query_finish (UnitySearchProvider *self,
  *
  * Activates one result by its id.
  */
-void       unity_search_provider_activate_result (UnitySearchProvider *self,
-                                                        const gchar              *id,
-                                                        const gchar *const       *terms,
-                                                        guint32                   timestamp);
+void         unity_search_provider_activate_result (UnitySearchProvider *self,
+                                                    const gchar         *id,
+                                                    const gchar *const  *terms,
+                                                    guint32              timestamp);
 
 /**
  * unity_search_provider_launch_search:
@@ -122,9 +112,9 @@ void       unity_search_provider_activate_result (UnitySearchProvider *self,
  *
  * Opens the provider's app on the full results for @terms.
  */
-void       unity_search_provider_launch_search   (UnitySearchProvider *self,
-                                                        const gchar *const       *terms,
-                                                        guint32                   timestamp);
+void         unity_search_provider_launch_search   (UnitySearchProvider *self,
+                                                    const gchar *const  *terms,
+                                                    guint32              timestamp);
 
 /**
  * unity_search_provider_reset:
@@ -132,6 +122,6 @@ void       unity_search_provider_launch_search   (UnitySearchProvider *self,
  *
  * Forgets the last query, so the next query starts fresh.
  */
-void       unity_search_provider_reset           (UnitySearchProvider *self);
+void         unity_search_provider_reset           (UnitySearchProvider *self);
 
 G_END_DECLS

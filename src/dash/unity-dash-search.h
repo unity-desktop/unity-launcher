@@ -36,15 +36,6 @@ G_DECLARE_FINAL_TYPE (UnityDashSearch, unity_dash_search,
                       UNITY, DASH_SEARCH, AdwBin)
 
 /**
- * unity_dash_search_new:
- *
- * Makes a new dash search page.
- *
- * Returns: (transfer full): a new search page as a #GtkWidget.
- */
-GtkWidget *unity_dash_search_new (void);
-
-/**
  * unity_dash_search_run:
  * @self: a #UnityDashSearch.
  * @query: the text to search for.

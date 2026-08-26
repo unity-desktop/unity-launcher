@@ -128,9 +128,16 @@ unity_search_result_rows_dispose (GObject *object)
 {
   UnitySearchResultRows *self = UNITY_SEARCH_RESULT_ROWS (object);
   g_clear_object (&self->provider);
-  g_clear_pointer (&self->terms, g_strfreev);
   gtk_widget_dispose_template (GTK_WIDGET (object), UNITY_TYPE_SEARCH_RESULT_ROWS);
   G_OBJECT_CLASS (unity_search_result_rows_parent_class)->dispose (object);
+}
+
+static void
+unity_search_result_rows_finalize (GObject *object)
+{
+  UnitySearchResultRows *self = UNITY_SEARCH_RESULT_ROWS (object);
+  g_strfreev (self->terms);
+  G_OBJECT_CLASS (unity_search_result_rows_parent_class)->finalize (object);
 }
 
 static void
@@ -138,7 +145,8 @@ unity_search_result_rows_class_init (UnitySearchResultRowsClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
-  G_OBJECT_CLASS (klass)->dispose = unity_search_result_rows_dispose;
+  G_OBJECT_CLASS (klass)->dispose  = unity_search_result_rows_dispose;
+  G_OBJECT_CLASS (klass)->finalize = unity_search_result_rows_finalize;
 
   gtk_widget_class_set_template_from_resource (
     widget_class, "/org/unity/launcher/dash/search/unity-search-result-rows.ui");
