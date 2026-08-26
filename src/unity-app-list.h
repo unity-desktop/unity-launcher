@@ -43,7 +43,7 @@ G_DECLARE_FINAL_TYPE (UnityAppList, unity_app_list, UNITY, APP_LIST, GObject)
  *
  * Returns: (transfer full): a new #UnityAppList.
  */
-UnityAppList  *unity_app_list_new              (void);
+UnityAppList  *unity_app_list_new                (void);
 
 /**
  * unity_app_list_set_pinned_app_ids:
@@ -52,8 +52,8 @@ UnityAppList  *unity_app_list_new              (void);
  *
  * Sets the pinned app ids and rebuilds the list.
  */
-void                unity_app_list_set_pinned_app_ids (UnityAppList *self,
-                                                             const gchar *const *app_ids);
+void           unity_app_list_set_pinned_app_ids (UnityAppList       *self,
+                                                  const gchar *const *app_ids);
 
 /**
  * unity_app_list_get_entry:
@@ -65,7 +65,7 @@ void                unity_app_list_set_pinned_app_ids (UnityAppList *self,
  *
  * Returns: (transfer none) (nullable): the #UnityAppEntry, or %NULL.
  */
-UnityAppEntry *unity_app_list_get_entry        (UnityAppList *self,
-                                                           const gchar       *app_id);
+UnityAppEntry *unity_app_list_get_entry          (UnityAppList *self,
+                                                  const gchar  *app_id);
 
 G_END_DECLS

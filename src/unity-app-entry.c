@@ -22,13 +22,15 @@
 
 #include <astal-wlr.h>
 
+#include "unity-app-catalog.h"
+
 struct _UnityAppEntry
 {
   GObject     parent_instance;
 
-  gchar      *app_id;
-  GAppInfo   *app_info;
-  GListModel *toplevels;
+  gchar                *app_id;
+  AstalAppsApplication *app;
+  GListModel           *toplevels;
 
   gboolean    pinned;
   gboolean    running;
@@ -39,11 +41,7 @@ G_DEFINE_FINAL_TYPE (UnityAppEntry, unity_app_entry, G_TYPE_OBJECT)
 
 typedef enum
 {
-  PROP_APP_ID = 1,
-  PROP_APP_INFO,
-  PROP_TOPLEVELS,
-  PROP_PINNED,
-  PROP_RUNNING,
+  PROP_RUNNING = 1,
   PROP_ACTIVATED,
 } UnityAppEntryProperty;
 static GParamSpec *properties[PROP_ACTIVATED + 1];
@@ -78,31 +76,10 @@ recompute_derived (UnityAppEntry *self)
 }
 
 static void
-on_toplevel_activated_changed (AstalWlrToplevel *toplevel, GParamSpec *pspec,
-                               UnityAppEntry *self)
-{
-  (void) toplevel; (void) pspec;
-  recompute_derived (self);
-}
-
-static void
-attach_toplevel_listener (UnityAppEntry *self, AstalWlrToplevel *toplevel)
-{
-  g_signal_connect_object (toplevel, "notify::activated",
-                           G_CALLBACK (on_toplevel_activated_changed), self, G_CONNECT_DEFAULT);
-}
-
-static void
 on_toplevels_items_changed (GListModel *model, guint position, guint removed,
                             guint added, UnityAppEntry *self)
 {
-  (void) removed;
-
-  for (guint i = 0; i < added; i++)
-    {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (model, position + i);
-      attach_toplevel_listener (self, tl);
-    }
+  (void) model; (void) position; (void) removed; (void) added;
   recompute_derived (self);
 }
 
@@ -112,7 +89,7 @@ unity_app_entry_dispose (GObject *object)
   UnityAppEntry *self = UNITY_APP_ENTRY (object);
 
   g_clear_object (&self->toplevels);
-  g_clear_object (&self->app_info);
+  g_clear_object (&self->app);
 
   G_OBJECT_CLASS (unity_app_entry_parent_class)->dispose (object);
 }
@@ -133,10 +110,6 @@ unity_app_entry_get_property (GObject *object, guint id, GValue *value, GParamSp
   UnityAppEntry *self = UNITY_APP_ENTRY (object);
   switch ((UnityAppEntryProperty) id)
     {
-    case PROP_APP_ID:    g_value_set_string  (value, self->app_id);    break;
-    case PROP_APP_INFO:  g_value_set_object  (value, self->app_info);  break;
-    case PROP_TOPLEVELS: g_value_set_object  (value, self->toplevels); break;
-    case PROP_PINNED:    g_value_set_boolean (value, self->pinned);    break;
     case PROP_RUNNING:   g_value_set_boolean (value, self->running);   break;
     case PROP_ACTIVATED: g_value_set_boolean (value, self->activated); break;
     default: G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, pspec);
@@ -152,14 +125,6 @@ unity_app_entry_class_init (UnityAppEntryClass *klass)
   object_class->finalize     = unity_app_entry_finalize;
   object_class->get_property = unity_app_entry_get_property;
 
-  properties[PROP_APP_ID] = g_param_spec_string (
-    "app-id", NULL, NULL, NULL, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-  properties[PROP_APP_INFO] = g_param_spec_object (
-    "app-info", NULL, NULL, G_TYPE_APP_INFO, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-  properties[PROP_TOPLEVELS] = g_param_spec_object (
-    "toplevels", NULL, NULL, G_TYPE_LIST_MODEL, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-  properties[PROP_PINNED] = g_param_spec_boolean (
-    "pinned", NULL, NULL, FALSE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
   properties[PROP_RUNNING] = g_param_spec_boolean (
     "running", NULL, NULL, FALSE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
   properties[PROP_ACTIVATED] = g_param_spec_boolean (
@@ -175,7 +140,7 @@ unity_app_entry_init (UnityAppEntry *self)
 }
 
 UnityAppEntry *
-_unity_app_entry_new (const gchar *app_id, GAppInfo *app_info, GListModel *toplevels)
+_unity_app_entry_new (const gchar *app_id, AstalAppsApplication *app, GListModel *toplevels)
 {
   UnityAppEntry *self;
 
@@ -184,20 +149,21 @@ _unity_app_entry_new (const gchar *app_id, GAppInfo *app_info, GListModel *tople
 
   self = g_object_new (UNITY_TYPE_APP_ENTRY, NULL);
   self->app_id    = g_strdup (app_id);
-  self->app_info  = app_info ? g_object_ref (app_info) : NULL;
+  self->app       = app ? g_object_ref (app) : NULL;
   self->toplevels = g_object_ref (toplevels);
 
-  guint n = g_list_model_get_n_items (toplevels);
-  for (guint i = 0; i < n; i++)
-    {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (toplevels, i);
-      attach_toplevel_listener (self, tl);
-    }
   g_signal_connect_object (toplevels, "items-changed",
                            G_CALLBACK (on_toplevels_items_changed), self, G_CONNECT_DEFAULT);
 
   recompute_derived (self);
   return self;
+}
+
+void
+_unity_app_entry_recompute (UnityAppEntry *self)
+{
+  g_return_if_fail (UNITY_IS_APP_ENTRY (self));
+  recompute_derived (self);
 }
 
 void
@@ -208,7 +174,6 @@ _unity_app_entry_set_pinned (UnityAppEntry *self, gboolean pinned)
   if (self->pinned == pinned)
     return;
   self->pinned = pinned;
-  g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_PINNED]);
 }
 
 const gchar *
@@ -222,7 +187,16 @@ GAppInfo *
 unity_app_entry_get_app_info (UnityAppEntry *self)
 {
   g_return_val_if_fail (UNITY_IS_APP_ENTRY (self), NULL);
-  return self->app_info;
+  if (self->app == NULL)
+    return NULL;
+  return G_APP_INFO (astal_apps_application_get_app (self->app));
+}
+
+AstalAppsApplication *
+unity_app_entry_get_application (UnityAppEntry *self)
+{
+  g_return_val_if_fail (UNITY_IS_APP_ENTRY (self), NULL);
+  return self->app;
 }
 
 GListModel *
@@ -261,14 +235,8 @@ unity_app_entry_activate_or_launch (UnityAppEntry *self)
   guint n = g_list_model_get_n_items (self->toplevels);
   if (n == 0)
     {
-      if (self->app_info != NULL)
-        {
-          g_autoptr (GError) error = NULL;
-          if (!g_app_info_launch (self->app_info, NULL, NULL, &error))
-            g_warning ("UnityAppEntry: launch failed for %s: %s",
-                       self->app_id ? self->app_id : "(null)",
-                       error ? error->message : "unknown error");
-        }
+      if (self->app != NULL)
+        unity_app_catalog_launch (self->app);
       return;
     }
 

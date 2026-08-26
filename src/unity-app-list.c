@@ -20,26 +20,24 @@
 
 #include "unity-app-list.h"
 
-#include <string.h>
 
 #include <astal-apps.h>
 #include <astal-wlr.h>
-#include <gio/gdesktopappinfo.h>
 #include <gtk/gtk.h>
 
 #include "unity-app-catalog.h"
 
 struct _UnityAppList
 {
-  GObject         parent_instance;
+  GObject        parent_instance;
 
-  AstalAppsApps  *catalog;
-  GListModel     *toplevels;
-  GStrv           pinned;
+  AstalAppsApps *catalog;
+  GListModel    *toplevels;
+  GStrv          pinned;
 
-  GPtrArray      *entries;
-  GHashTable     *cache;
-  GHashTable     *id_canonical;
+  GListStore    *entries;
+  GHashTable    *cache;
+  GHashTable    *id_canonical;
 };
 
 static void list_model_iface_init (GListModelInterface *iface);
@@ -50,13 +48,13 @@ G_DEFINE_FINAL_TYPE_WITH_CODE (UnityAppList, unity_app_list, G_TYPE_OBJECT,
                                G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, list_model_iface_init))
 
 static GType    list_model_get_item_type (GListModel *m) { (void) m; return UNITY_TYPE_APP_ENTRY; }
-static guint    list_model_get_n_items   (GListModel *m) { return UNITY_APP_LIST (m)->entries->len; }
+static guint    list_model_get_n_items   (GListModel *m)
+{
+  return g_list_model_get_n_items (G_LIST_MODEL (UNITY_APP_LIST (m)->entries));
+}
 static gpointer list_model_get_item      (GListModel *m, guint pos)
 {
-  UnityAppList *self = UNITY_APP_LIST (m);
-  if (pos >= self->entries->len)
-    return NULL;
-  return g_object_ref (g_ptr_array_index (self->entries, pos));
+  return g_list_model_get_item (G_LIST_MODEL (UNITY_APP_LIST (m)->entries), pos);
 }
 
 static void
@@ -65,6 +63,14 @@ list_model_iface_init (GListModelInterface *iface)
   iface->get_item_type = list_model_get_item_type;
   iface->get_n_items   = list_model_get_n_items;
   iface->get_item      = list_model_get_item;
+}
+
+static void
+on_entries_items_changed (GListModel *entries, guint pos, guint removed, guint added,
+                          UnityAppList *self)
+{
+  (void) entries;
+  g_list_model_items_changed (G_LIST_MODEL (self), pos, removed, added);
 }
 
 static gchar *
@@ -135,7 +141,7 @@ canonical_id_for (UnityAppList *self, const gchar *raw_id)
 typedef struct
 {
   UnityAppList *list;
-  gchar             *canonical;
+  gchar        *canonical;
 } AppIdMatch;
 
 static void
@@ -170,6 +176,20 @@ build_per_app_filter (UnityAppList *self, const gchar *canonical)
   return G_LIST_MODEL (gtk_filter_list_model_new (base, GTK_FILTER (filter)));
 }
 
+static AstalAppsApplication *
+application_for (UnityAppList *self, const gchar *entry_id)
+{
+  GList                *list  = astal_apps_apps_get_list (self->catalog);
+  AstalAppsApplication *found = NULL;
+
+  for (GList *l = list; l != NULL && found == NULL; l = l->next)
+    if (g_strcmp0 (astal_apps_application_get_entry (l->data), entry_id) == 0)
+      found = l->data;
+  g_list_free (list);
+
+  return found;
+}
+
 static UnityAppEntry *
 ensure_entry (UnityAppList *self, const gchar *canonical)
 {
@@ -180,9 +200,8 @@ ensure_entry (UnityAppList *self, const gchar *canonical)
   if (entry != NULL)
     return entry;
 
-  g_autoptr (GDesktopAppInfo) dinfo = g_desktop_app_info_new (canonical);
-  g_autoptr (GListModel) toplevels  = build_per_app_filter (self, canonical);
-  entry = _unity_app_entry_new (canonical, dinfo ? G_APP_INFO (dinfo) : NULL, toplevels);
+  g_autoptr (GListModel) toplevels = build_per_app_filter (self, canonical);
+  entry = _unity_app_entry_new (canonical, application_for (self, canonical), toplevels);
 
   g_hash_table_insert (self->cache, g_strdup (canonical), entry);
   return entry;
@@ -230,41 +249,50 @@ static void
 sync_to_desired (UnityAppList *self)
 {
   g_autoptr (GPtrArray) desired = compute_desired_order (self);
-  GPtrArray            *current = self->entries;
+  GListStore           *current = self->entries;
+  guint                 cur_len = g_list_model_get_n_items (G_LIST_MODEL (current));
 
   g_autoptr (GHashTable) desired_set = g_hash_table_new (NULL, NULL);
   for (guint i = 0; i < desired->len; i++)
     g_hash_table_add (desired_set, g_ptr_array_index (desired, i));
 
-  for (guint i = current->len; i-- > 0;)
-    if (!g_hash_table_contains (desired_set, g_ptr_array_index (current, i)))
-      {
-        g_ptr_array_remove_index (current, i);
-        g_list_model_items_changed (G_LIST_MODEL (self), i, 1, 0);
-      }
+  for (guint i = cur_len; i-- > 0;)
+    {
+      g_autoptr (GObject) item = g_list_model_get_item (G_LIST_MODEL (current), i);
+      if (!g_hash_table_contains (desired_set, item))
+        {
+          g_list_store_remove (current, i);
+          cur_len--;
+        }
+    }
 
   for (guint i = 0; i < desired->len; i++)
     {
       gpointer want = g_ptr_array_index (desired, i);
-      if (i < current->len && g_ptr_array_index (current, i) == want)
-        continue;
+      if (i < cur_len)
+        {
+          g_autoptr (GObject) here = g_list_model_get_item (G_LIST_MODEL (current), i);
+          if (here == want)
+            continue;
+        }
 
       gboolean moved = FALSE;
-      for (guint j = i + 1; j < current->len; j++)
-        if (g_ptr_array_index (current, j) == want)
-          {
-            g_ptr_array_remove_index (current, j);
-            g_list_model_items_changed (G_LIST_MODEL (self), j, 1, 0);
-            g_ptr_array_insert (current, i, want);
-            g_list_model_items_changed (G_LIST_MODEL (self), i, 0, 1);
-            moved = TRUE;
-            break;
-          }
+      for (guint j = i + 1; j < cur_len; j++)
+        {
+          g_autoptr (GObject) at = g_list_model_get_item (G_LIST_MODEL (current), j);
+          if (at == want)
+            {
+              g_list_store_remove (current, j);
+              g_list_store_insert (current, i, want);
+              moved = TRUE;
+              break;
+            }
+        }
       if (moved)
         continue;
 
-      g_ptr_array_insert (current, i, want);
-      g_list_model_items_changed (G_LIST_MODEL (self), i, 0, 1);
+      g_list_store_insert (current, i, want);
+      cur_len++;
     }
 }
 
@@ -308,12 +336,25 @@ on_toplevel_app_id_notify (AstalWlrToplevel *toplevel, GParamSpec *pspec,
 }
 
 static void
+on_toplevel_activated_notify (AstalWlrToplevel *toplevel, GParamSpec *pspec,
+                              UnityAppList *self)
+{
+  (void) pspec;
+  const gchar   *canonical = g_object_get_data (G_OBJECT (toplevel), "unity-canonical");
+  UnityAppEntry *entry     = canonical ? g_hash_table_lookup (self->cache, canonical) : NULL;
+  if (entry != NULL)
+    _unity_app_entry_recompute (entry);
+}
+
+static void
 hook_toplevel (UnityAppList *self, AstalWlrToplevel *tl)
 {
   const gchar *canonical = canonical_id_for (self, astal_wlr_toplevel_get_app_id (tl));
   g_object_set_data_full (G_OBJECT (tl), "unity-canonical", g_strdup (canonical), g_free);
   g_signal_connect_object (tl, "notify::app-id",
                            G_CALLBACK (on_toplevel_app_id_notify), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (tl, "notify::activated",
+                           G_CALLBACK (on_toplevel_activated_notify), self, G_CONNECT_DEFAULT);
 }
 
 static void
@@ -345,9 +386,8 @@ unity_app_list_dispose (GObject *object)
 {
   UnityAppList *self = UNITY_APP_LIST (object);
 
-  g_clear_pointer (&self->entries,      g_ptr_array_unref);
-  g_clear_pointer (&self->cache,        g_hash_table_unref);
-  g_clear_pointer (&self->id_canonical, g_hash_table_unref);
+  g_clear_object (&self->entries);
+  g_clear_pointer (&self->cache,   g_hash_table_unref);
   g_clear_object  (&self->toplevels);
 
   G_OBJECT_CLASS (unity_app_list_parent_class)->dispose (object);
@@ -358,7 +398,8 @@ unity_app_list_finalize (GObject *object)
 {
   UnityAppList *self = UNITY_APP_LIST (object);
 
-  g_clear_pointer (&self->pinned, g_strfreev);
+  g_clear_pointer (&self->id_canonical, g_hash_table_unref);
+  g_clear_pointer (&self->pinned,       g_strfreev);
 
   G_OBJECT_CLASS (unity_app_list_parent_class)->finalize (object);
 }
@@ -375,7 +416,9 @@ unity_app_list_class_init (UnityAppListClass *klass)
 static void
 unity_app_list_init (UnityAppList *self)
 {
-  self->entries      = g_ptr_array_new ();
+  self->entries      = g_list_store_new (UNITY_TYPE_APP_ENTRY);
+  g_signal_connect_object (self->entries, "items-changed",
+                           G_CALLBACK (on_entries_items_changed), self, G_CONNECT_DEFAULT);
   self->cache        = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   self->id_canonical = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 

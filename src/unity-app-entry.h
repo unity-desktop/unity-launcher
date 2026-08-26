@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <gio/gio.h>
+#include <astal-apps.h>
 
 G_BEGIN_DECLS
 
@@ -32,8 +32,7 @@ G_BEGIN_DECLS
  * One entry in the app list, holding an app's identity, its optional #GAppInfo,
  * and a live model of its toplevel windows.
  */
-G_DECLARE_FINAL_TYPE (UnityAppEntry, unity_app_entry,
-                      UNITY, APP_ENTRY, GObject)
+G_DECLARE_FINAL_TYPE (UnityAppEntry, unity_app_entry, UNITY, APP_ENTRY, GObject)
 
 /**
  * unity_app_entry_get_app_id:
@@ -43,7 +42,7 @@ G_DECLARE_FINAL_TYPE (UnityAppEntry, unity_app_entry,
  *
  * Returns: (transfer none): the app id.
  */
-const gchar *unity_app_entry_get_app_id    (UnityAppEntry *self);
+const gchar   *unity_app_entry_get_app_id         (UnityAppEntry *self);
 
 /**
  * unity_app_entry_get_app_info:
@@ -53,7 +52,18 @@ const gchar *unity_app_entry_get_app_id    (UnityAppEntry *self);
  *
  * Returns: (transfer none) (nullable): the #GAppInfo, or %NULL.
  */
-GAppInfo    *unity_app_entry_get_app_info  (UnityAppEntry *self);
+GAppInfo      *unity_app_entry_get_app_info       (UnityAppEntry *self);
+
+/**
+ * unity_app_entry_get_application:
+ * @self: a #UnityAppEntry.
+ *
+ * Gets the catalog application the entry stands for. An entry backed only by a
+ * window has none.
+ *
+ * Returns: (transfer none) (nullable): the #AstalAppsApplication, or %NULL.
+ */
+AstalAppsApplication *unity_app_entry_get_application (UnityAppEntry *self);
 
 /**
  * unity_app_entry_get_toplevels:
@@ -63,7 +73,7 @@ GAppInfo    *unity_app_entry_get_app_info  (UnityAppEntry *self);
  *
  * Returns: (transfer none): the toplevels #GListModel.
  */
-GListModel  *unity_app_entry_get_toplevels (UnityAppEntry *self);
+GListModel    *unity_app_entry_get_toplevels      (UnityAppEntry *self);
 
 /**
  * unity_app_entry_get_pinned:
@@ -73,7 +83,7 @@ GListModel  *unity_app_entry_get_toplevels (UnityAppEntry *self);
  *
  * Returns: %TRUE if the entry is pinned.
  */
-gboolean     unity_app_entry_get_pinned    (UnityAppEntry *self);
+gboolean       unity_app_entry_get_pinned         (UnityAppEntry *self);
 
 /**
  * unity_app_entry_get_running:
@@ -83,7 +93,7 @@ gboolean     unity_app_entry_get_pinned    (UnityAppEntry *self);
  *
  * Returns: %TRUE if the app is running.
  */
-gboolean     unity_app_entry_get_running   (UnityAppEntry *self);
+gboolean       unity_app_entry_get_running        (UnityAppEntry *self);
 
 /**
  * unity_app_entry_get_activated:
@@ -93,7 +103,7 @@ gboolean     unity_app_entry_get_running   (UnityAppEntry *self);
  *
  * Returns: %TRUE if the app is activated.
  */
-gboolean     unity_app_entry_get_activated (UnityAppEntry *self);
+gboolean       unity_app_entry_get_activated      (UnityAppEntry *self);
 
 /**
  * unity_app_entry_activate_or_launch:
@@ -103,7 +113,7 @@ gboolean     unity_app_entry_get_activated (UnityAppEntry *self);
  * app's windows has focus, it minimizes that window. If not, it raises the first
  * window.
  */
-void         unity_app_entry_activate_or_launch (UnityAppEntry *self);
+void           unity_app_entry_activate_or_launch (UnityAppEntry *self);
 
 /**
  * unity_app_entry_close_all:
@@ -111,21 +121,30 @@ void         unity_app_entry_activate_or_launch (UnityAppEntry *self);
  *
  * Closes every open window of the app.
  */
-void         unity_app_entry_close_all          (UnityAppEntry *self);
+void           unity_app_entry_close_all          (UnityAppEntry *self);
 
 /**
  * _unity_app_entry_new:
  * @app_id: the app id.
- * @app_info: (nullable): an optional #GAppInfo.
+ * @app: (nullable): the catalog application this entry stands for.
  * @toplevels: a #GListModel of the app's toplevel windows.
  *
  * Makes a new entry. UnityAppList calls this. Consumers do not.
  *
  * Returns: (transfer full): a new #UnityAppEntry.
  */
-UnityAppEntry *_unity_app_entry_new        (const gchar *app_id,
-                                                       GAppInfo    *app_info,
-                                                       GListModel  *toplevels);
+UnityAppEntry *_unity_app_entry_new               (const gchar *app_id,
+                                                   AstalAppsApplication *app,
+                                                   GListModel  *toplevels);
+
+/**
+ * _unity_app_entry_recompute:
+ * @self: a #UnityAppEntry.
+ *
+ * Re-derives the running and activated flags from the toplevels list. Called by
+ * UnityAppList when a toplevel property that affects them changes.
+ */
+void           _unity_app_entry_recompute         (UnityAppEntry *self);
 
 /**
  * _unity_app_entry_set_pinned:
@@ -134,7 +153,7 @@ UnityAppEntry *_unity_app_entry_new        (const gchar *app_id,
  *
  * Sets the pinned state of the entry. UnityAppList calls this.
  */
-void                _unity_app_entry_set_pinned (UnityAppEntry *self,
-                                                       gboolean            pinned);
+void           _unity_app_entry_set_pinned        (UnityAppEntry *self,
+                                                   gboolean       pinned);
 
 G_END_DECLS

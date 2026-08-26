@@ -1,4 +1,4 @@
-/* unity-launcher-tile.h
+/* unity-launcher-app-tile.h
  *
  * Copyright 2026 Muqtadir
  *
@@ -20,60 +20,60 @@
 
 #pragma once
 
-#include "components/unity-tile.h"
+#include "components/unity-app-tile.h"
 #include "unity-app-entry.h"
 
 G_BEGIN_DECLS
 
-#define UNITY_TYPE_LAUNCHER_TILE (unity_launcher_tile_get_type ())
+#define UNITY_TYPE_LAUNCHER_APP_TILE (unity_launcher_app_tile_get_type ())
 
 /**
- * UnityLauncherTile:
+ * UnityLauncherAppTile:
  *
  * A launcher dock tile bound to a #UnityAppEntry that shows the app icon and its
  * running state.
  */
-G_DECLARE_FINAL_TYPE (UnityLauncherTile, unity_launcher_tile,
-                      UNITY, LAUNCHER_TILE, UnityTile)
+G_DECLARE_FINAL_TYPE (UnityLauncherAppTile, unity_launcher_app_tile,
+                      UNITY, LAUNCHER_APP_TILE, UnityAppTile)
 
 /**
- * unity_launcher_tile_new:
+ * unity_launcher_app_tile_new:
  * @entry: the #UnityAppEntry the tile shows.
  *
  * Makes a new launcher tile for @entry.
  *
  * Returns: (transfer full): a new launcher tile as a #GtkWidget.
  */
-GtkWidget   *unity_launcher_tile_new        (UnityAppEntry *entry);
+GtkWidget   *unity_launcher_app_tile_new          (UnityAppEntry *entry);
 
 /**
- * unity_launcher_tile_get_app_id:
- * @self: a #UnityLauncherTile.
+ * unity_launcher_app_tile_get_app_id:
+ * @self: a #UnityLauncherAppTile.
  *
  * Gets the app id of the tile's entry.
  *
  * Returns: (transfer none) (nullable): the app id, or %NULL.
  */
-const gchar *unity_launcher_tile_get_app_id (UnityLauncherTile *self);
+const gchar *unity_launcher_app_tile_get_app_id   (UnityLauncherAppTile *self);
 
 /**
- * unity_launcher_tile_get_pinned:
- * @self: a #UnityLauncherTile.
+ * unity_launcher_app_tile_get_pinned:
+ * @self: a #UnityLauncherAppTile.
  *
  * Gets whether the tile's entry is pinned.
  *
  * Returns: %TRUE if the entry is pinned.
  */
-gboolean     unity_launcher_tile_get_pinned (UnityLauncherTile *self);
+gboolean     unity_launcher_app_tile_get_pinned   (UnityLauncherAppTile *self);
 
 /**
- * unity_launcher_tile_get_dragging:
- * @self: a #UnityLauncherTile.
+ * unity_launcher_app_tile_get_dragging:
+ * @self: a #UnityLauncherAppTile.
  *
  * Gets whether the tile is currently being dragged.
  *
  * Returns: %TRUE while a drag of this tile is in progress.
  */
-gboolean     unity_launcher_tile_get_dragging (UnityLauncherTile *self);
+gboolean     unity_launcher_app_tile_get_dragging (UnityLauncherAppTile *self);
 
 G_END_DECLS

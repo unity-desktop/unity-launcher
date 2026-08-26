@@ -1,4 +1,4 @@
-/* unity-launcher-tile.c
+/* unity-launcher-app-tile.c
  *
  * Copyright 2026 Muqtadir
  *
@@ -18,7 +18,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "components/unity-launcher-tile.h"
+#include "components/unity-launcher-app-tile.h"
 
 #include <math.h>
 
@@ -26,11 +26,9 @@
 #include <astal-wayfire.h>
 #include <astal-wlr.h>
 #include <gdk/wayland/gdkwayland.h>
-#include <gio/gdesktopappinfo.h>
 #include <graphene.h>
 
-#include "components/unity-desktop-actions.h"
-#include "unity-launcher.h"
+#include "components/unity-launcher-app-strip.h"
 
 #define FOOTPRINT_PADDING     4
 
@@ -38,60 +36,69 @@
 #define DND_FADE_OUT_MS       150
 #define DND_FADE_IN_MS        200
 
-struct _UnityLauncherTile
+struct _UnityLauncherAppTile
 {
-  UnityTile      parent_instance;
+  UnityAppTile      parent_instance;
 
   UnityAppEntry *entry;
-  GtkWidget          *dot;
+  GtkWidget     *dot;
   gboolean       dragging;
 };
 
 typedef enum
 {
-  PROP_ENTRY = 1,
-  PROP_DRAGGING,
-} UnityLauncherTileProperty;
+  PROP_DRAGGING = 1,
+} UnityLauncherAppTileProperty;
 static GParamSpec *properties[PROP_DRAGGING + 1];
 
-G_DEFINE_FINAL_TYPE (UnityLauncherTile, unity_launcher_tile, UNITY_TYPE_TILE)
+G_DEFINE_FINAL_TYPE (UnityLauncherAppTile, unity_launcher_app_tile, UNITY_TYPE_APP_TILE)
 
 static void
-sync_image (UnityLauncherTile *self)
+sync_tooltip (UnityLauncherAppTile *self)
 {
-  GAppInfo *info = self->entry ? unity_app_entry_get_app_info (self->entry) : NULL;
+  AstalAppsApplication *app = self->entry ? unity_app_entry_get_application (self->entry)
+                                        : NULL;
 
-  unity_tile_set_gicon (UNITY_TILE (self), info ? g_app_info_get_icon (info) : NULL);
   gtk_widget_set_tooltip_text (GTK_WIDGET (self),
-                               info ? g_app_info_get_display_name (info) : NULL);
+                               app ? astal_apps_application_get_name (app) : NULL);
 }
 
 static void
-sync_footprint (UnityLauncherTile *self)
+sync_footprint (UnityLauncherAppTile *self)
 {
-  gint side = unity_tile_get_icon_size (UNITY_TILE (self)) + FOOTPRINT_PADDING;
+  gint side = unity_app_tile_get_icon_size (UNITY_APP_TILE (self)) + FOOTPRINT_PADDING;
   gtk_widget_set_size_request (
-    GTK_WIDGET (unity_tile_get_box (UNITY_TILE (self))), side, side);
+    GTK_WIDGET (unity_app_tile_get_box (UNITY_APP_TILE (self))), side, side);
 }
 
 static void
-sync_running (UnityLauncherTile *self)
+set_state_class (UnityLauncherAppTile *self, const gchar *name, gboolean on)
+{
+  if (on)
+    gtk_widget_add_css_class (GTK_WIDGET (self), name);
+  else
+    gtk_widget_remove_css_class (GTK_WIDGET (self), name);
+}
+
+static void
+sync_running (UnityLauncherAppTile *self)
 {
   gboolean running = self->entry && unity_app_entry_get_running (self->entry);
 
   gtk_widget_set_opacity (self->dot, running ? 1.0 : 0.0);
-  unity_tile_set_running (UNITY_TILE (self), running);
+  set_state_class (self, "running", running);
+  gtk_widget_action_set_enabled (GTK_WIDGET (self), "tile.quit", running);
 }
 
 static void
-sync_active (UnityLauncherTile *self)
+sync_active (UnityLauncherAppTile *self)
 {
-  unity_tile_set_active (UNITY_TILE (self),
-                               self->entry && unity_app_entry_get_activated (self->entry));
+  set_state_class (self, "active",
+                   self->entry && unity_app_entry_get_activated (self->entry));
 }
 
 static void
-push_rectangle_hints (UnityLauncherTile *self)
+push_rectangle_hints (UnityLauncherAppTile *self)
 {
   if (self->entry == NULL || !gtk_widget_get_mapped (GTK_WIDGET (self)))
     return;
@@ -112,18 +119,15 @@ push_rectangle_hints (UnityLauncherTile *self)
   if (wsurface == NULL)
     return;
 
-  gint w = gtk_widget_get_width  (widget);
-  gint h = gtk_widget_get_height (widget);
-  if (w <= 0 || h <= 0)
+  graphene_rect_t bounds;
+  if (!gtk_widget_compute_bounds (widget, GTK_WIDGET (root), &bounds) ||
+      bounds.size.width <= 0 || bounds.size.height <= 0)
     return;
 
-  graphene_point_t origin = GRAPHENE_POINT_INIT (0.f, 0.f);
-  graphene_point_t mapped;
-  if (!gtk_widget_compute_point (widget, GTK_WIDGET (root), &origin, &mapped))
-    return;
-
-  gint x = (int) lroundf (mapped.x);
-  gint y = (int) lroundf (mapped.y);
+  gint x = (int) lroundf (bounds.origin.x);
+  gint y = (int) lroundf (bounds.origin.y);
+  gint w = (int) lroundf (bounds.size.width);
+  gint h = (int) lroundf (bounds.size.height);
 
   for (guint i = 0; i < n; i++)
     {
@@ -134,10 +138,42 @@ push_rectangle_hints (UnityLauncherTile *self)
 }
 
 static void
+clear_rectangle_hints (UnityLauncherAppTile *self)
+{
+  if (self->entry == NULL)
+    return;
+
+  GtkWidget  *widget   = GTK_WIDGET (self);
+  GtkRoot    *root     = gtk_widget_get_root (widget);
+  GdkSurface *gsurface = root ? gtk_native_get_surface (GTK_NATIVE (root)) : NULL;
+  if (gsurface == NULL || !GDK_IS_WAYLAND_SURFACE (gsurface))
+    return;
+  struct wl_surface *wsurface = gdk_wayland_surface_get_wl_surface (gsurface);
+  if (wsurface == NULL)
+    return;
+
+  GListModel *toplevels = unity_app_entry_get_toplevels (self->entry);
+  guint n = toplevels ? g_list_model_get_n_items (toplevels) : 0;
+  for (guint i = 0; i < n; i++)
+    {
+      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (toplevels, i);
+      if (tl != NULL)
+        astal_wlr_toplevel_set_rectangle (tl, wsurface, 0, 0, 0, 0);
+    }
+}
+
+static void
 on_tile_map (GtkWidget *widget, gpointer data)
 {
   (void) data;
-  push_rectangle_hints (UNITY_LAUNCHER_TILE (widget));
+  push_rectangle_hints (UNITY_LAUNCHER_APP_TILE (widget));
+}
+
+static void
+on_tile_unmap (GtkWidget *widget, gpointer data)
+{
+  (void) data;
+  clear_rectangle_hints (UNITY_LAUNCHER_APP_TILE (widget));
 }
 
 static void
@@ -146,11 +182,11 @@ on_toplevels_items_changed (GListModel *model, guint position, guint removed,
 {
   (void) model; (void) position; (void) removed;
   if (added > 0)
-    push_rectangle_hints (UNITY_LAUNCHER_TILE (data));
+    push_rectangle_hints (UNITY_LAUNCHER_APP_TILE (data));
 }
 
 static void
-spread_app_windows (UnityLauncherTile *self)
+spread_app_windows (UnityLauncherAppTile *self)
 {
   GListModel *toplevels = unity_app_entry_get_toplevels (self->entry);
   guint       n         = toplevels ? g_list_model_get_n_items (toplevels) : 0;
@@ -175,10 +211,19 @@ spread_app_windows (UnityLauncherTile *self)
 }
 
 static void
+tile_quit (GtkWidget *widget, const gchar *action_name, GVariant *param)
+{
+  (void) action_name; (void) param;
+  UnityLauncherAppTile *self = UNITY_LAUNCHER_APP_TILE (widget);
+  if (self->entry != NULL)
+    unity_app_entry_close_all (self->entry);
+}
+
+static void
 on_self_clicked (GtkButton *button, gpointer user_data)
 {
   (void) user_data;
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (button);
+  UnityLauncherAppTile *self = UNITY_LAUNCHER_APP_TILE (button);
   if (self->entry == NULL)
     return;
 
@@ -192,65 +237,9 @@ on_self_clicked (GtkButton *button, gpointer user_data)
 }
 
 static void
-launch_action_activated (GSimpleAction *action, GVariant *param, gpointer user_data)
+unity_launcher_app_tile_populate_menu (UnityAppTile *tile, GMenu *menu)
 {
-  (void) action;
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (user_data);
-  if (self->entry == NULL)
-    return;
-  GAppInfo *info = unity_app_entry_get_app_info (self->entry);
-  if (info == NULL || !G_IS_DESKTOP_APP_INFO (info))
-    return;
-  g_desktop_app_info_launch_action (G_DESKTOP_APP_INFO (info),
-                                    g_variant_get_string (param, NULL), NULL);
-}
-
-static void
-launch_default_activated (GSimpleAction *action, GVariant *param, gpointer user_data)
-{
-  (void) action; (void) param;
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (user_data);
-  if (self->entry == NULL)
-    return;
-  GAppInfo *info = unity_app_entry_get_app_info (self->entry);
-  if (info == NULL)
-    return;
-
-  g_autoptr (GError) error = NULL;
-  if (!g_app_info_launch (info, NULL, NULL, &error))
-    g_warning ("UnityLauncherTile: launch failed: %s",
-               error ? error->message : "unknown error");
-}
-
-static void
-install_tile_actions (UnityLauncherTile *self)
-{
-  static const GActionEntry entries[] = {
-    { "launch",        launch_default_activated, NULL, NULL, NULL, { 0, 0, 0 } },
-    { "launch-action", launch_action_activated,  "s",  NULL, NULL, { 0, 0, 0 } },
-  };
-
-  g_autoptr (GSimpleActionGroup) group = g_simple_action_group_new ();
-  g_action_map_add_action_entries (G_ACTION_MAP (group),
-                                   entries, G_N_ELEMENTS (entries), self);
-  gtk_widget_insert_action_group (GTK_WIDGET (self), "tile", G_ACTION_GROUP (group));
-}
-
-static void
-unity_launcher_tile_populate_menu (UnityTile *tile, GMenu *menu)
-{
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (tile);
-  GAppInfo          *info = self->entry ? unity_app_entry_get_app_info (self->entry) : NULL;
-
-  {
-    g_autoptr (GMenu) section = g_menu_new ();
-    g_menu_append (section, "Open", "tile.launch");
-    g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
-  }
-
-  if (info != NULL && G_IS_DESKTOP_APP_INFO (info))
-    unity_desktop_actions_append (
-      menu, G_DESKTOP_APP_INFO (info), "tile.launch-action");
+  UnityLauncherAppTile *self = UNITY_LAUNCHER_APP_TILE (tile);
 
   if (self->entry == NULL)
     return;
@@ -258,34 +247,17 @@ unity_launcher_tile_populate_menu (UnityTile *tile, GMenu *menu)
   if (app_id == NULL || *app_id == '\0')
     return;
 
-  GVariant *target = g_variant_new_string (app_id);
-
-  {
-    gboolean pinned = unity_app_entry_get_pinned (self->entry);
-    g_autoptr (GMenu)     section = g_menu_new ();
-    g_autoptr (GMenuItem) item    = g_menu_item_new (
-      pinned ? "Unpin from Launcher" : "Pin to Launcher", NULL);
-    g_menu_item_set_action_and_target_value (item, UNITY_LAUNCHER_ACTION_PIN_TOGGLE, target);
-    g_menu_append_item (section, item);
-    g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
-  }
-
-  if (unity_app_entry_get_running (self->entry))
-    {
-      g_autoptr (GMenu)     section = g_menu_new ();
-      g_autoptr (GMenuItem) item    = g_menu_item_new ("Quit", NULL);
-      g_menu_item_set_action_and_target_value (item, UNITY_LAUNCHER_ACTION_QUIT, target);
-      g_menu_append_item (section, item);
-      g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
-    }
+  g_autoptr (GMenu) section = g_menu_new ();
+  g_menu_append (section, "Quit", "tile.quit");
+  g_menu_append_section (menu, NULL, G_MENU_MODEL (section));
 }
 
 static GdkContentProvider *
 on_drag_prepare (GtkDragSource *source, gdouble x, gdouble y, gpointer user_data)
 {
   (void) source; (void) x; (void) y;
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (user_data);
-  if (self->entry == NULL || !unity_app_entry_get_pinned (self->entry))
+  UnityLauncherAppTile *self = UNITY_LAUNCHER_APP_TILE (user_data);
+  if (self->entry == NULL)
     return NULL;
   const gchar *app_id = unity_app_entry_get_app_id (self->entry);
   if (app_id == NULL || *app_id == '\0')
@@ -308,7 +280,7 @@ fade_opacity (GtkWidget *widget, gdouble from, gdouble to, guint ms)
 }
 
 static GdkPaintable *
-build_drag_paintable (UnityLauncherTile *self)
+build_drag_paintable (UnityLauncherAppTile *self)
 {
   if (self->entry == NULL)
     return NULL;
@@ -317,7 +289,7 @@ build_drag_paintable (UnityLauncherTile *self)
   if (icon == NULL)
     return NULL;
 
-  gint          size  = unity_tile_get_icon_size (UNITY_TILE (self));
+  gint          size  = unity_app_tile_get_icon_size (UNITY_APP_TILE (self));
   gint          scale = gtk_widget_get_scale_factor (GTK_WIDGET (self));
   GtkIconTheme *theme = gtk_icon_theme_get_for_display (gtk_widget_get_display (GTK_WIDGET (self)));
 
@@ -330,8 +302,8 @@ static void
 on_drag_begin (GtkDragSource *source, GdkDrag *drag, gpointer user_data)
 {
   (void) drag;
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (user_data);
-  gint size = unity_tile_get_icon_size (UNITY_TILE (self));
+  UnityLauncherAppTile *self = UNITY_LAUNCHER_APP_TILE (user_data);
+  gint size = unity_app_tile_get_icon_size (UNITY_APP_TILE (self));
 
   g_autoptr (GdkPaintable) paintable = build_drag_paintable (self);
   if (paintable != NULL)
@@ -347,7 +319,7 @@ static void
 on_drag_end (GtkDragSource *source, GdkDrag *drag, gboolean delete_data, gpointer user_data)
 {
   (void) source; (void) drag;
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (user_data);
+  UnityLauncherAppTile *self = UNITY_LAUNCHER_APP_TILE (user_data);
   GtkWidget *widget = GTK_WIDGET (user_data);
 
   self->dragging = FALSE;
@@ -381,7 +353,7 @@ group_with_click_gesture (GtkWidget *widget, GtkGesture *drag_gesture)
 }
 
 static void
-install_dnd (UnityLauncherTile *self)
+install_dnd (UnityLauncherAppTile *self)
 {
   GtkDragSource *drag_source = gtk_drag_source_new ();
   gtk_drag_source_set_actions (drag_source, GDK_ACTION_MOVE);
@@ -393,25 +365,19 @@ install_dnd (UnityLauncherTile *self)
 }
 
 static void
-on_entry_app_info_notify (UnityAppEntry *entry, GParamSpec *pspec, UnityLauncherTile *self)
-{
-  (void) entry; (void) pspec;
-  sync_image (self);
-}
-
-static void
-on_entry_running_notify (UnityAppEntry *entry, GParamSpec *pspec, UnityLauncherTile *self)
+on_entry_running_notify (UnityAppEntry *entry, GParamSpec *pspec, UnityLauncherAppTile *self)
 {
   (void) entry; (void) pspec;
   sync_running (self);
 }
 
 static void
-on_entry_activated_notify (UnityAppEntry *entry, GParamSpec *pspec, UnityLauncherTile *self)
+on_entry_activated_notify (UnityAppEntry *entry, GParamSpec *pspec, UnityLauncherAppTile *self)
 {
   (void) entry; (void) pspec;
   sync_active (self);
 }
+
 
 static void
 on_icon_size_notify (GObject *object, GParamSpec *pspec, gpointer user_data)
@@ -421,15 +387,15 @@ on_icon_size_notify (GObject *object, GParamSpec *pspec, gpointer user_data)
 }
 
 static void
-construct_entry_bindings (UnityLauncherTile *self, UnityAppEntry *entry)
+construct_entry_bindings (UnityLauncherAppTile *self, UnityAppEntry *entry)
 {
   if (entry == NULL)
     return;
 
   self->entry = g_object_ref (entry);
+  unity_app_tile_set_application (UNITY_APP_TILE (self),
+                              unity_app_entry_get_application (entry));
 
-  g_signal_connect_object (entry, "notify::app-info",
-                           G_CALLBACK (on_entry_app_info_notify),  self, G_CONNECT_DEFAULT);
   g_signal_connect_object (entry, "notify::running",
                            G_CALLBACK (on_entry_running_notify),   self, G_CONNECT_DEFAULT);
   g_signal_connect_object (entry, "notify::activated",
@@ -439,107 +405,96 @@ construct_entry_bindings (UnityLauncherTile *self, UnityAppEntry *entry)
   g_signal_connect_object (toplevels, "items-changed",
                            G_CALLBACK (on_toplevels_items_changed), self, G_CONNECT_DEFAULT);
 
-  sync_image   (self);
+  sync_tooltip (self);
   sync_running (self);
   sync_active  (self);
 }
 
 GtkWidget *
-unity_launcher_tile_new (UnityAppEntry *entry)
+unity_launcher_app_tile_new (UnityAppEntry *entry)
 {
-  return g_object_new (UNITY_TYPE_LAUNCHER_TILE, "entry", entry, NULL);
+  GtkWidget *self = g_object_new (UNITY_TYPE_LAUNCHER_APP_TILE, NULL);
+  construct_entry_bindings (UNITY_LAUNCHER_APP_TILE (self), entry);
+  return self;
 }
 
 const gchar *
-unity_launcher_tile_get_app_id (UnityLauncherTile *self)
+unity_launcher_app_tile_get_app_id (UnityLauncherAppTile *self)
 {
-  g_return_val_if_fail (UNITY_IS_LAUNCHER_TILE (self), NULL);
+  g_return_val_if_fail (UNITY_IS_LAUNCHER_APP_TILE (self), NULL);
   return self->entry ? unity_app_entry_get_app_id (self->entry) : NULL;
 }
 
 gboolean
-unity_launcher_tile_get_pinned (UnityLauncherTile *self)
+unity_launcher_app_tile_get_pinned (UnityLauncherAppTile *self)
 {
-  g_return_val_if_fail (UNITY_IS_LAUNCHER_TILE (self), FALSE);
+  g_return_val_if_fail (UNITY_IS_LAUNCHER_APP_TILE (self), FALSE);
   return self->entry ? unity_app_entry_get_pinned (self->entry) : FALSE;
 }
 
 gboolean
-unity_launcher_tile_get_dragging (UnityLauncherTile *self)
+unity_launcher_app_tile_get_dragging (UnityLauncherAppTile *self)
 {
-  g_return_val_if_fail (UNITY_IS_LAUNCHER_TILE (self), FALSE);
+  g_return_val_if_fail (UNITY_IS_LAUNCHER_APP_TILE (self), FALSE);
   return self->dragging;
 }
 
 static void
-unity_launcher_tile_dispose (GObject *object)
+unity_launcher_app_tile_dispose (GObject *object)
 {
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (object);
+  UnityLauncherAppTile *self = UNITY_LAUNCHER_APP_TILE (object);
+  clear_rectangle_hints (self);
   g_clear_object (&self->entry);
-  G_OBJECT_CLASS (unity_launcher_tile_parent_class)->dispose (object);
+  G_OBJECT_CLASS (unity_launcher_app_tile_parent_class)->dispose (object);
 }
 
 static void
-unity_launcher_tile_get_property (GObject *object, guint id, GValue *value, GParamSpec *pspec)
+unity_launcher_app_tile_get_property (GObject *object, guint id, GValue *value, GParamSpec *pspec)
 {
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (object);
-  switch ((UnityLauncherTileProperty) id)
+  UnityLauncherAppTile *self = UNITY_LAUNCHER_APP_TILE (object);
+  switch ((UnityLauncherAppTileProperty) id)
     {
-    case PROP_ENTRY:    g_value_set_object  (value, self->entry);    break;
     case PROP_DRAGGING: g_value_set_boolean (value, self->dragging); break;
     default: G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, pspec);
     }
 }
 
 static void
-unity_launcher_tile_set_property (GObject *object, guint id, const GValue *value, GParamSpec *pspec)
-{
-  UnityLauncherTile *self = UNITY_LAUNCHER_TILE (object);
-  switch ((UnityLauncherTileProperty) id)
-    {
-    case PROP_ENTRY: construct_entry_bindings (self, g_value_get_object (value)); break;
-    default: G_OBJECT_WARN_INVALID_PROPERTY_ID (object, id, pspec);
-    }
-}
-
-static void
-unity_launcher_tile_class_init (UnityLauncherTileClass *klass)
+unity_launcher_app_tile_class_init (UnityLauncherAppTileClass *klass)
 {
   GObjectClass    *object_class = G_OBJECT_CLASS (klass);
-  UnityTileClass *tile_class = UNITY_TILE_CLASS (klass);
+  UnityAppTileClass *tile_class = UNITY_APP_TILE_CLASS (klass);
 
-  object_class->dispose      = unity_launcher_tile_dispose;
-  object_class->get_property = unity_launcher_tile_get_property;
-  object_class->set_property = unity_launcher_tile_set_property;
+  object_class->dispose      = unity_launcher_app_tile_dispose;
+  object_class->get_property = unity_launcher_app_tile_get_property;
 
-  tile_class->populate_menu = unity_launcher_tile_populate_menu;
+  tile_class->populate_menu = unity_launcher_app_tile_populate_menu;
 
-  properties[PROP_ENTRY] = g_param_spec_object (
-    "entry", NULL, NULL, UNITY_TYPE_APP_ENTRY,
-    G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
+  gtk_widget_class_install_action (GTK_WIDGET_CLASS (klass),
+                                   "tile.quit", NULL, tile_quit);
+
   properties[PROP_DRAGGING] = g_param_spec_boolean (
     "dragging", NULL, NULL, FALSE,
     G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
   g_object_class_install_properties (object_class, G_N_ELEMENTS (properties), properties);
 
-  gtk_widget_class_set_css_name (GTK_WIDGET_CLASS (klass), "tile");
+  gtk_widget_class_set_css_name (GTK_WIDGET_CLASS (klass), "unity-launcher-tile");
 }
 
 static void
-unity_launcher_tile_init (UnityLauncherTile *self)
+unity_launcher_app_tile_init (UnityLauncherAppTile *self)
 {
+  gtk_widget_action_set_enabled (GTK_WIDGET (self), "tile.quit", FALSE);
   self->dot = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_widget_set_halign (self->dot, GTK_ALIGN_CENTER);
   gtk_widget_add_css_class (self->dot, "running-dot");
-  gtk_box_append (unity_tile_get_box (UNITY_TILE (self)), self->dot);
-
-  unity_tile_set_menu_position (UNITY_TILE (self), GTK_POS_RIGHT);
+  gtk_box_append (unity_app_tile_get_box (UNITY_APP_TILE (self)), self->dot);
 
   sync_footprint (self);
-  install_tile_actions (self);
   install_dnd (self);
 
   g_signal_connect (self, "clicked", G_CALLBACK (on_self_clicked), NULL);
   g_signal_connect (self, "notify::icon-size", G_CALLBACK (on_icon_size_notify), self);
-  g_signal_connect (self, "map", G_CALLBACK (on_tile_map), NULL);
+  g_signal_connect (self, "map",   G_CALLBACK (on_tile_map),   NULL);
+  g_signal_connect (self, "unmap", G_CALLBACK (on_tile_unmap), NULL);
 }

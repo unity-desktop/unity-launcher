@@ -21,6 +21,7 @@
 #pragma once
 
 #include <astal-apps.h>
+#include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
@@ -33,5 +34,15 @@ G_BEGIN_DECLS
  * Returns: (transfer none): the shared #AstalAppsApps.
  */
 AstalAppsApps *unity_app_catalog_get_default (void);
+
+/**
+ * unity_app_catalog_launch:
+ * @app: the application to launch.
+ *
+ * Launches @app with a real #GdkAppLaunchContext, so the target inherits an
+ * activation token and can raise its own window. Counts the launch by bumping
+ * astal's frequency counter, so the dash's "frequent" row stays consistent.
+ */
+void           unity_app_catalog_launch      (AstalAppsApplication *app);
 
 G_END_DECLS
