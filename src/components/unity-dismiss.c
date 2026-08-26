@@ -20,39 +20,13 @@
 
 #include "components/unity-dismiss.h"
 
-#include <gdk/gdkkeysyms.h>
-
 typedef struct
 {
-  UnityDismissFunc on_minimize;
-  UnityDismissFunc on_close;
-  gpointer         data;
-  GtkWidget       *content;
+  UnityDismissFunc  on_minimize;
+  UnityDismissFunc  on_close;
+  gpointer          data;
+  GtkWidget        *content;
 } DismissCtx;
-
-/* Escape does a light dismiss and keeps state. Ctrl+W and Alt+F4 are explicit
- * closes. */
-static gboolean
-on_key_pressed (GtkEventControllerKey *key, guint keyval, guint keycode,
-                GdkModifierType state, gpointer user_data)
-{
-  (void) key; (void) keycode;
-  DismissCtx *ctx = user_data;
-
-  gboolean alt_f4 = (keyval == GDK_KEY_F4) && (state & GDK_ALT_MASK);
-  gboolean ctrl_w = (keyval == GDK_KEY_w) && (state & GDK_CONTROL_MASK);
-  if (alt_f4 || ctrl_w)
-    {
-      ctx->on_close (ctx->data);
-      return GDK_EVENT_STOP;
-    }
-  if (keyval == GDK_KEY_Escape)
-    {
-      ctx->on_minimize (ctx->data);
-      return GDK_EVENT_STOP;
-    }
-  return GDK_EVENT_PROPAGATE;
-}
 
 /* The window's close-request (WM close, gtk_window_close(), Alt+F4 routed by the
  * compositor). Its default handler destroys the surface, so close and stop it. */
@@ -95,7 +69,7 @@ unity_dismiss_attach (GtkWidget *surface, GtkWidget *area, GtkWidget *content,
                       UnityDismissFunc on_minimize, UnityDismissFunc on_close,
                       gpointer user_data)
 {
-  g_return_if_fail (GTK_IS_WIDGET (surface));
+  g_return_if_fail (GTK_IS_WINDOW (surface));
   g_return_if_fail (GTK_IS_WIDGET (area));
   g_return_if_fail (GTK_IS_WIDGET (content));
   g_return_if_fail (on_minimize != NULL);
@@ -113,15 +87,9 @@ unity_dismiss_attach (GtkWidget *surface, GtkWidget *area, GtkWidget *content,
   g_signal_connect (click, "pressed", G_CALLBACK (on_area_pressed), ctx);
   gtk_widget_add_controller (area, GTK_EVENT_CONTROLLER (click));
 
-  GtkEventController *key = gtk_event_controller_key_new ();
-  gtk_event_controller_set_propagation_phase (key, GTK_PHASE_CAPTURE);
-  g_signal_connect (key, "key-pressed", G_CALLBACK (on_key_pressed), ctx);
-  gtk_widget_add_controller (surface, key);
-
   GtkEventController *focus = gtk_event_controller_focus_new ();
   g_signal_connect (focus, "leave", G_CALLBACK (on_focus_leave), ctx);
   gtk_widget_add_controller (surface, focus);
 
-  if (GTK_IS_WINDOW (surface))
-    g_signal_connect (surface, "close-request", G_CALLBACK (on_close_request), ctx);
+  g_signal_connect (surface, "close-request", G_CALLBACK (on_close_request), ctx);
 }

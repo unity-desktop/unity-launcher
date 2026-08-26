@@ -24,9 +24,9 @@
 
 struct _UnityDashGridLayout
 {
-  GtkLayoutManager parent_instance;
+  GtkLayoutManager  parent_instance;
 
-  gint max_rows;   /* rows to show at most, or 0 for no limit */
+  gint              max_rows;  /* rows to show at most, or 0 for no limit */
 };
 
 G_DEFINE_FINAL_TYPE (UnityDashGridLayout, unity_dash_grid_layout, GTK_TYPE_LAYOUT_MANAGER)

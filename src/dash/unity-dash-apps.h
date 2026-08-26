@@ -31,17 +31,7 @@ G_BEGIN_DECLS
  *
  * The dash browse page that shows every installed application in a square grid.
  */
-G_DECLARE_FINAL_TYPE (UnityDashApps, unity_dash_apps,
-                      UNITY, DASH_APPS, AdwBin)
-
-/**
- * unity_dash_apps_new:
- *
- * Makes a new dash browse page.
- *
- * Returns: (transfer full): a new browse page as a #GtkWidget.
- */
-GtkWidget *unity_dash_apps_new (void);
+G_DECLARE_FINAL_TYPE (UnityDashApps, unity_dash_apps, UNITY, DASH_APPS, AdwBin)
 
 /**
  * unity_dash_apps_reset:
