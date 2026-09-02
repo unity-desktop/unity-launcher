@@ -101,15 +101,6 @@ gboolean unity_position_is_horizontal (UnityPosition position);
  */
 const gchar *unity_position_edge_margin (UnityPosition position);
 
-/**
- * unity_position_style_class:
- * @position: a #UnityPosition.
- *
- * Gets the CSS class that draws the divider on the edge facing the screen.
- *
- * Returns: a static string, one of "pos-left", "pos-right", "pos-bottom".
- */
-const gchar *unity_position_style_class (UnityPosition position);
 
 /**
  * unity_position_menu_side:

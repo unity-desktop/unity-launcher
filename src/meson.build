@@ -6,6 +6,7 @@ unity_launcher_deps = [
   dep_graphene,
   dep_wlclient,
   dep_astal4,
+  dep_unity_platform_components,
   dep_astalapps,
   dep_astalwlr,
   dep_astalwayfire,

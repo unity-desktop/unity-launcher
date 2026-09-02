@@ -20,18 +20,17 @@
 
 #include "unity-position.h"
 
+#include <unity-strip.h>
+
 AstalWindowAnchor
 unity_position_anchor (UnityPosition position)
 {
   switch (position)
     {
-    case UNITY_POSITION_RIGHT:
-      return ASTAL_WINDOW_ANCHOR_TOP | ASTAL_WINDOW_ANCHOR_RIGHT | ASTAL_WINDOW_ANCHOR_BOTTOM;
-    case UNITY_POSITION_BOTTOM:
-      return ASTAL_WINDOW_ANCHOR_LEFT | ASTAL_WINDOW_ANCHOR_RIGHT | ASTAL_WINDOW_ANCHOR_BOTTOM;
+    case UNITY_POSITION_RIGHT:  return unity_strip_anchor_for_edge (GTK_POS_RIGHT);
+    case UNITY_POSITION_BOTTOM: return unity_strip_anchor_for_edge (GTK_POS_BOTTOM);
     case UNITY_POSITION_LEFT:
-    default:
-      return ASTAL_WINDOW_ANCHOR_TOP | ASTAL_WINDOW_ANCHOR_LEFT | ASTAL_WINDOW_ANCHOR_BOTTOM;
+    default:                    return unity_strip_anchor_for_edge (GTK_POS_LEFT);
     }
 }
 

@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <astal-4.h>
+#include <unity-strip.h>
 
 G_BEGIN_DECLS
 
@@ -34,7 +34,7 @@ G_BEGIN_DECLS
  * strip runs along that edge.
  */
 G_DECLARE_FINAL_TYPE (UnityLauncher, unity_launcher,
-                      UNITY, LAUNCHER, AstalWindow)
+                      UNITY, LAUNCHER, UnityStrip)
 
 /**
  * unity_launcher_new:

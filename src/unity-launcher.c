@@ -37,7 +37,7 @@ struct _UnityLauncher
   UnityHide             *hide;
 };
 
-G_DEFINE_FINAL_TYPE (UnityLauncher, unity_launcher, ASTAL_TYPE_WINDOW)
+G_DEFINE_FINAL_TYPE (UnityLauncher, unity_launcher, UNITY_TYPE_STRIP)
 
 static void
 apply_position (UnityLauncher *self)
@@ -48,11 +48,6 @@ apply_position (UnityLauncher *self)
   astal_window_set_anchor (ASTAL_WINDOW (self), unity_position_anchor (pos));
   gtk_orientable_set_orientation (GTK_ORIENTABLE (self->content), orientation);
   gtk_orientable_set_orientation (GTK_ORIENTABLE (self->app_strip), orientation);
-
-  gtk_widget_remove_css_class (GTK_WIDGET (self), "pos-left");
-  gtk_widget_remove_css_class (GTK_WIDGET (self), "pos-right");
-  gtk_widget_remove_css_class (GTK_WIDGET (self), "pos-bottom");
-  gtk_widget_add_css_class (GTK_WIDGET (self), unity_position_style_class (pos));
 }
 
 /* A tile being dragged or showing its menu holds the launcher revealed, so it
