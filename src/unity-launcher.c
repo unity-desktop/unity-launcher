@@ -91,7 +91,6 @@ unity_launcher_class_init (UnityLauncherClass *klass)
 
   object_class->dispose = unity_launcher_dispose;
 
-  /* Ensure the custom children are registered before the template is parsed. */
   g_type_ensure (UNITY_TYPE_LAUNCHER_APP_STRIP);
   g_type_ensure (UNITY_TYPE_LAUNCHER_DASH_BUTTON);
 
@@ -122,27 +121,8 @@ unity_launcher_init (UnityLauncher *self)
                            G_CALLBACK (on_strip_menu_shown), self, G_CONNECT_DEFAULT);
 }
 
-static void
-ensure_style (void)
-{
-  static gsize done = 0;
-
-  if (g_once_init_enter (&done))
-    {
-      g_autoptr (GtkCssProvider) provider = gtk_css_provider_new ();
-
-      gtk_css_provider_load_from_resource (provider, "/org/unity/launcher/launcher.css");
-      gtk_style_context_add_provider_for_display (
-        gdk_display_get_default (), GTK_STYLE_PROVIDER (provider),
-        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-
-      g_once_init_leave (&done, 1);
-    }
-}
-
 UnityLauncher *
 unity_launcher_new (GtkApplication *app)
 {
-  ensure_style ();
   return g_object_new (UNITY_TYPE_LAUNCHER, "application", app, NULL);
 }

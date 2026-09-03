@@ -4,6 +4,7 @@
   <requires lib="libadwaita" version="1.0"/>
   <template class="UnityLauncher" parent="UnityStrip">
     <property name="namespace">unity-launcher</property>
+    <property name="stylesheet">/org/unity/launcher/launcher.css</property>
     <property name="layer">top</property>
     <property name="exclusivity">exclusive</property>
     <property name="keymode">none</property>
