@@ -7,7 +7,6 @@ unity_launcher_sources += files(
   'unity-launcher-app-strip.c',
   'unity-launcher-dash-button.c',
   'unity-pinned-apps-reorder.c',
-  'unity-dismiss.c',
   'unity-pinned-apps.c',
   'unity-desktop-actions.c',
 )
