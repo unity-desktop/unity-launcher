@@ -20,17 +20,11 @@
 
 #pragma once
 
-#include <astal-4.h>
+#include <unity-window-popup.h>
 
 G_BEGIN_DECLS
 
 #define UNITY_TYPE_DASH (unity_dash_get_type ())
-
-/* Marker set on a UnityDash toplevel so other components can find it without
- * including this header. Its value has meaning only through pointer equality
- * with g_intern_static_string ("dash"). */
-#define UNITY_DASH_WINDOW_ROLE_KEY  "unity-dash-role"
-#define UNITY_DASH_WINDOW_ROLE      "dash"
 
 /**
  * UnityDash:
@@ -38,7 +32,7 @@ G_BEGIN_DECLS
  * An application grid window, shown as a layer-shell overlay that fills the work
  * area so a click outside the panel dismisses it.
  */
-G_DECLARE_FINAL_TYPE (UnityDash, unity_dash, UNITY, DASH, AstalWindow)
+G_DECLARE_FINAL_TYPE (UnityDash, unity_dash, UNITY, DASH, UnityWindowPopup)
 
 /**
  * unity_dash_new:
@@ -58,14 +52,6 @@ GtkWidget *unity_dash_new    (GtkApplication *app);
  * back to the apps page, and focuses the search entry.
  */
 void       unity_dash_reset  (UnityDash *self);
-
-/**
- * unity_dash_close:
- * @self: a #UnityDash.
- *
- * Hides the dash and discards its state, so the next open starts fresh.
- */
-void       unity_dash_close  (UnityDash *self);
 
 /**
  * unity_dash_toggle:

@@ -25,19 +25,13 @@
 #include <graphene.h>
 #include <graphene.h>
 
+#include "dash/unity-dash.h"
 #include "unity-position.h"
-
-/* Recognise a UnityDash without including its header: it stamps itself with a
- * role marker at init. See UNITY_DASH_WINDOW_ROLE_KEY in dash/unity-dash.h. */
-#define UNITY_DASH_WINDOW_ROLE_KEY  "unity-dash-role"
-#define UNITY_DASH_WINDOW_ROLE      "dash"
 
 static gboolean
 window_is_dash (GtkWindow *window)
 {
-  return window != NULL &&
-         g_object_get_data (G_OBJECT (window), UNITY_DASH_WINDOW_ROLE_KEY) ==
-           g_intern_static_string (UNITY_DASH_WINDOW_ROLE);
+  return window != NULL && UNITY_IS_DASH (window);
 }
 #include "unity-settings.h"
 

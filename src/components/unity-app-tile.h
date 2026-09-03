@@ -35,10 +35,8 @@ G_BEGIN_DECLS
  *
  * The base takes the icon from the application, installs the "tile" action group
  * with `launch`, `launch-action` and `pin-toggle`, and fills the menu with
- * "Open", the desktop file's own actions and the pin item. After a launch it
- * activates the `dash.close` widget action, which walks up the widget tree —
- * inside the dash it dismisses; elsewhere it is a no-op. A subclass adds what
- * is particular to it.
+ * "Open", the desktop file's own actions and the pin item. A subclass adds
+ * what is particular to it.
  */
 G_DECLARE_DERIVABLE_TYPE (UnityAppTile, unity_app_tile, UNITY, APP_TILE, GtkButton)
 
@@ -101,8 +99,7 @@ AstalAppsApplication *unity_app_tile_get_application (UnityAppTile *self);
  * unity_app_tile_launch:
  * @self: a #UnityAppTile.
  *
- * Launches the tile's application and activates the `dash.close` widget
- * action (a no-op outside the dash). astal counts the launch, which is what
+ * Launches the tile's application. astal counts the launch, which is what
  * the dash's frequent row reads.
  */
 void      unity_app_tile_launch            (UnityAppTile *self);

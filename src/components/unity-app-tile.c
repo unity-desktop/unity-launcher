@@ -103,7 +103,6 @@ tile_launch_action (GtkWidget *widget, const gchar *action_name, GVariant *param
       astal_apps_application_set_frequency (priv->app,
                                             astal_apps_application_get_frequency (priv->app) + 1);
     }
-  gtk_widget_activate_action (widget, "dash.close", NULL);
 }
 
 static void
@@ -257,7 +256,6 @@ unity_app_tile_launch (UnityAppTile *self)
     return;
 
   unity_app_catalog_launch (priv->app);
-  gtk_widget_activate_action (GTK_WIDGET (self), "dash.close", NULL);
 }
 
 void
