@@ -46,5 +46,9 @@
       <default>false</default>
       <summary>Open the dash maximized rather than as a popover</summary>
     </key>
+    <key name="show-frequent-apps" type="b">
+      <default>true</default>
+      <summary>Show the frequent-apps row above the dash's apps grid</summary>
+    </key>
   </schema>
 </schemalist>

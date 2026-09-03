@@ -92,6 +92,17 @@ box_clear (GtkBox *box)
 static void
 fill_frequent (UnityDashApps *self)
 {
+  box_clear (self->frequent);
+
+  gboolean enabled = g_settings_get_boolean (self->settings,
+                                             UNITY_LAUNCHER_KEY_SHOW_FREQUENT_APPS);
+  if (!enabled)
+    {
+      gtk_widget_set_visible (GTK_WIDGET (self->frequent), FALSE);
+      gtk_widget_set_visible (self->divider, FALSE);
+      return;
+    }
+
   GList *apps     = astal_apps_apps_get_list (self->catalog);
   GList *launched = NULL;
 
@@ -100,8 +111,6 @@ fill_frequent (UnityDashApps *self)
       launched = g_list_prepend (launched, l->data);
   launched = g_list_sort_with_data (launched, cmp_by_frequency, NULL);
   g_list_free (apps);
-
-  box_clear (self->frequent);
 
   guint added = 0;
   for (GList *l = launched; l != NULL && added < FREQUENT_CANDIDATES; l = l->next, added++)
@@ -181,5 +190,8 @@ unity_dash_apps_init (UnityDashApps *self)
 
   g_signal_connect_object (self->catalog, "notify::list",
                            G_CALLBACK (on_catalog_changed), self, G_CONNECT_DEFAULT);
+  g_signal_connect_object (self->settings,
+                           "changed::" UNITY_LAUNCHER_KEY_SHOW_FREQUENT_APPS,
+                           G_CALLBACK (fill_frequent), self, G_CONNECT_SWAPPED);
   fill (self);
 }
