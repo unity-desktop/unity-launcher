@@ -65,7 +65,7 @@ unity_dash_app_tile_init (UnityDashAppTile *self)
   gtk_label_set_wrap (self->label, FALSE);
   gtk_label_set_max_width_chars (self->label, 18);
   gtk_widget_set_halign (GTK_WIDGET (self->label), GTK_ALIGN_CENTER);
-  gtk_widget_set_margin_top (GTK_WIDGET (self->label), 2);
+  gtk_widget_set_margin_top (GTK_WIDGET (self->label), 6);
   gtk_widget_add_css_class (GTK_WIDGET (self->label), "body");
   gtk_box_append (unity_app_tile_get_box (UNITY_APP_TILE (self)), GTK_WIDGET (self->label));
 

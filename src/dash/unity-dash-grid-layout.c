@@ -20,7 +20,7 @@
 
 #include "dash/unity-dash-grid-layout.h"
 
-#define GRID_GAP 24
+#define GRID_GAP 12
 
 struct _UnityDashGridLayout
 {

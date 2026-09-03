@@ -42,15 +42,14 @@ on_copy_clicked (GtkButton *button, gpointer user_data)
     gdk_clipboard_set_text (gtk_widget_get_clipboard (GTK_WIDGET (button)), text);
 }
 
-/* Launch the result and dismiss the dash. Overrides AdwActionRow's activate so a
- * click or Enter on the row triggers it. */
+/* Launch the result. Overrides AdwActionRow's activate so a click or Enter on
+ * the row triggers it. */
 static void
 unity_search_result_row_activate (AdwActionRow *row)
 {
   UnitySearchResultRow *self = UNITY_SEARCH_RESULT_ROW (row);
   if (self->result != NULL)
     unity_search_result_activate (self->result, GDK_CURRENT_TIME);
-  gtk_widget_activate_action (GTK_WIDGET (self), "dash.close", NULL);
 }
 
 GtkWidget *

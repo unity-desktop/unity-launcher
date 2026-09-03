@@ -58,8 +58,8 @@ create_column (void)
   return list;
 }
 
-/* The header-suffix button is the provider's "open in <app>" action: it calls
- * LaunchSearch and closes the dash, mirroring GNOME Shell. */
+/* The header-suffix button is the provider's "open in <app>" action, mirroring
+ * GNOME Shell. */
 static void
 on_launch_clicked (GtkButton *button, gpointer user_data)
 {
@@ -68,7 +68,6 @@ on_launch_clicked (GtkButton *button, gpointer user_data)
   if (self->provider != NULL)
     unity_search_provider_launch_search (
       self->provider, (const gchar *const *) self->terms, GDK_CURRENT_TIME);
-  gtk_widget_activate_action (GTK_WIDGET (self), "dash.close", NULL);
 }
 
 /* The provider title and its launch suffix come from the template. This only

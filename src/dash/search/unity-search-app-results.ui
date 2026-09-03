@@ -4,7 +4,16 @@
   <requires lib="libadwaita" version="1.0"/>
   <template class="UnitySearchAppResults" parent="AdwBin">
     <property name="child">
-      <object class="GtkBox" id="tiles" />
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">12</property>
+        <child>
+          <object class="GtkBox" id="tiles"/>
+        </child>
+        <child>
+          <object class="GtkSeparator"/>
+        </child>
+      </object>
     </property>
   </template>
 </interface>
