@@ -21,6 +21,7 @@ dep_astalapps = dependency('astal-apps-0.1')
 dep_unity_platform_wlr = dependency('unity-platform-wlr')
 dep_astalwayfire = dependency('astal-wayfire-0.1')
 dep_json = dependency('json-glib-1.0')
+dep_libdex = dependency('libdex-1')
 
 gnome = import('gnome')
 

@@ -20,14 +20,16 @@
 
 #include "dash/search/unity-search.h"
 
+#include <libdex.h>
+
 #define RESULTS_PER_PROVIDER 5
 
 struct _UnitySearch
 {
-  GObject       parent_instance;
+  GObject  parent_instance;
 
-  GList        *providers;
-  GCancellable *cancellable;
+  GList   *providers;
+  guint    generation;
 };
 
 G_DEFINE_FINAL_TYPE (UnitySearch, unity_search, G_TYPE_OBJECT)
@@ -44,20 +46,51 @@ unity_search_get_default (void)
   return instance;
 }
 
-static void
-on_provider_query_done (GObject *source, GAsyncResult *res, gpointer user_data)
+typedef struct
 {
-  UnitySearch         *self     = user_data;
-  UnitySearchProvider *provider = UNITY_SEARCH_PROVIDER (source);
-  g_autoptr (GError)        error    = NULL;
+  UnitySearchProvider *provider;
+  guint                generation;
+} ReplyCtx;
 
-  g_autoptr (GPtrArray) results =
-    unity_search_provider_query_finish (provider, res, &error);
+static void
+reply_ctx_free (gpointer data)
+{
+  ReplyCtx *ctx = data;
+  g_object_unref (ctx->provider);
+  g_free (ctx);
+}
 
+static DexFuture *
+deliver_reply (DexFuture *future, gpointer user_data)
+{
+  ReplyCtx    *ctx  = user_data;
+  UnitySearch *self = unity_search_get_default ();
+
+  if (ctx->generation != self->generation)
+    return NULL;
+
+  const GValue *value = dex_future_get_value (future, NULL);
+  if (value == NULL)
+    return NULL;
+
+  GPtrArray *results = g_value_get_boxed (value);
   if (results == NULL || results->len == 0)
-    return;
+    return NULL;
 
-  g_signal_emit (self, signals[SIG_PROVIDER_RESULTS], 0, provider, results);
+  g_signal_emit (self, signals[SIG_PROVIDER_RESULTS], 0, ctx->provider, results);
+  return NULL;
+}
+
+static void
+dispatch_query (UnitySearch *self, UnitySearchProvider *provider, const gchar *const *terms)
+{
+  ReplyCtx *ctx  = g_new0 (ReplyCtx, 1);
+  ctx->provider  = g_object_ref (provider);
+  ctx->generation = self->generation;
+
+  dex_future_disown (dex_future_finally (
+    unity_search_provider_query (provider, terms, RESULTS_PER_PROVIDER),
+    deliver_reply, ctx, reply_ctx_free));
 }
 
 static GStrv
@@ -79,33 +112,25 @@ unity_search_query (UnitySearch *self, const gchar *query)
 {
   g_return_if_fail (UNITY_IS_SEARCH (self));
 
-  g_cancellable_cancel (self->cancellable);
-  g_clear_object (&self->cancellable);
+  self->generation++;
 
   g_auto (GStrv) terms = query ? split_terms (query) : NULL;
   if (terms == NULL)
     {
-      /* Cleared search: forget each provider's last query so the next one starts
-       * fresh rather than as a subsearch of stale results. */
       for (GList *l = self->providers; l != NULL; l = l->next)
         unity_search_provider_reset (l->data);
       return;
     }
 
-  self->cancellable = g_cancellable_new ();
   for (GList *l = self->providers; l != NULL; l = l->next)
-    unity_search_provider_query_async (
-      l->data, (const gchar *const *) terms,
-      RESULTS_PER_PROVIDER,
-      self->cancellable, on_provider_query_done, self);
+    dispatch_query (self, l->data, (const gchar *const *) terms);
 }
 
 static void
 unity_search_dispose (GObject *object)
 {
   UnitySearch *self = UNITY_SEARCH (object);
-  g_cancellable_cancel (self->cancellable);
-  g_clear_object (&self->cancellable);
+  self->generation++;
   g_list_free_full (g_steal_pointer (&self->providers), g_object_unref);
   G_OBJECT_CLASS (unity_search_parent_class)->dispose (object);
 }
@@ -115,7 +140,6 @@ unity_search_class_init (UnitySearchClass *klass)
 {
   G_OBJECT_CLASS (klass)->dispose = unity_search_dispose;
 
-  /* provider-results (provider, results): emitted when a provider replies. */
   signals[SIG_PROVIDER_RESULTS] = g_signal_new (
     "provider-results", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL,
     G_TYPE_NONE, 2, UNITY_TYPE_SEARCH_PROVIDER, G_TYPE_PTR_ARRAY);
@@ -124,5 +148,6 @@ unity_search_class_init (UnitySearchClass *klass)
 static void
 unity_search_init (UnitySearch *self)
 {
+  dex_init ();
   self->providers = unity_search_provider_discover ();
 }

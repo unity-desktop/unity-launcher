@@ -11,6 +11,7 @@ unity_launcher_deps = [
   dep_unity_platform_wlr,
   dep_astalwayfire,
   dep_json,
+  dep_libdex,
 ]
 
 unity_launcher_sources = files(

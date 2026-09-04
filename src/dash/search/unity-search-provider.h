@@ -21,6 +21,7 @@
 #pragma once
 
 #include <gio/gio.h>
+#include <libdex.h>
 
 #include "dash/search/unity-search-result.h"
 
@@ -31,8 +32,8 @@ G_BEGIN_DECLS
 /**
  * UnitySearchProvider:
  *
- * One installed GNOME SearchProvider2, wrapping a #GDBusProxy and the provider
- * app's #GDesktopAppInfo.
+ * One installed GNOME SearchProvider2, wrapping the provider app's
+ * #GDesktopAppInfo and issuing D-Bus calls against its well-known bus name.
  */
 G_DECLARE_FINAL_TYPE (UnitySearchProvider, unity_search_provider,
                       UNITY, SEARCH_PROVIDER, GObject)
@@ -59,36 +60,19 @@ GList       *unity_search_provider_discover        (void);
 const gchar *unity_search_provider_get_name        (UnitySearchProvider *self);
 
 /**
- * unity_search_provider_query_async:
+ * unity_search_provider_query:
  * @self: a #UnitySearchProvider.
  * @terms: (array zero-terminated=1): the search terms.
  * @limit: the most results to return.
- * @cancellable: (nullable): a #GCancellable.
- * @callback: the callback to run when the query finishes.
- * @user_data: the data for @callback.
  *
- * Starts a query on the provider.
+ * Starts a query on the provider. The returned future resolves to a
+ * (transfer full) #GPtrArray of #UnitySearchResult, or rejects with a #GError.
+ *
+ * Returns: (transfer full): a #DexFuture.
  */
-void         unity_search_provider_query_async     (UnitySearchProvider *self,
+DexFuture   *unity_search_provider_query           (UnitySearchProvider *self,
                                                     const gchar *const  *terms,
-                                                    guint                limit,
-                                                    GCancellable        *cancellable,
-                                                    GAsyncReadyCallback  callback,
-                                                    gpointer             user_data);
-
-/**
- * unity_search_provider_query_finish:
- * @self: a #UnitySearchProvider.
- * @result: the #GAsyncResult from the callback.
- * @error: (nullable): return location for an error.
- *
- * Finishes a query started with unity_search_provider_query_async().
- *
- * Returns: (transfer full) (element-type UnitySearchResult): the results.
- */
-GPtrArray   *unity_search_provider_query_finish    (UnitySearchProvider *self,
-                                                    GAsyncResult        *result,
-                                                    GError              **error);
+                                                    guint                limit);
 
 /**
  * unity_search_provider_activate_result:
@@ -97,7 +81,7 @@ GPtrArray   *unity_search_provider_query_finish    (UnitySearchProvider *self,
  * @terms: (array zero-terminated=1): the search terms.
  * @timestamp: the event timestamp.
  *
- * Activates one result by its id.
+ * Activates one result by its id. Fire-and-forget.
  */
 void         unity_search_provider_activate_result (UnitySearchProvider *self,
                                                     const gchar         *id,
@@ -110,7 +94,7 @@ void         unity_search_provider_activate_result (UnitySearchProvider *self,
  * @terms: (array zero-terminated=1): the search terms.
  * @timestamp: the event timestamp.
  *
- * Opens the provider's app on the full results for @terms.
+ * Opens the provider's app on the full results for @terms. Fire-and-forget.
  */
 void         unity_search_provider_launch_search   (UnitySearchProvider *self,
                                                     const gchar *const  *terms,
