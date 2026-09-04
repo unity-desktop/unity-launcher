@@ -20,7 +20,7 @@
 
 #include "unity-app-entry.h"
 
-#include <astal-wlr.h>
+#include <unity-wlr-toplevels.h>
 
 #include "unity-app-catalog.h"
 
@@ -55,8 +55,8 @@ recompute_derived (UnityAppEntry *self)
 
   for (guint i = 0; i < n; i++)
     {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (self->toplevels, i);
-      if (astal_wlr_toplevel_get_activated (tl))
+      g_autoptr (UnityWlrToplevel) tl = g_list_model_get_item (self->toplevels, i);
+      if (unity_wlr_toplevel_get_activated (tl))
         {
           activated = TRUE;
           break;
@@ -242,17 +242,17 @@ unity_app_entry_activate_or_launch (UnityAppEntry *self)
 
   for (guint i = 0; i < n; i++)
     {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (self->toplevels, i);
-      if (astal_wlr_toplevel_get_activated (tl))
+      g_autoptr (UnityWlrToplevel) tl = g_list_model_get_item (self->toplevels, i);
+      if (unity_wlr_toplevel_get_activated (tl))
         {
-          astal_wlr_toplevel_minimize (tl, TRUE);
+          unity_wlr_toplevel_minimize (tl, TRUE);
           return;
         }
     }
 
-  g_autoptr (AstalWlrToplevel) first = g_list_model_get_item (self->toplevels, 0);
+  g_autoptr (UnityWlrToplevel) first = g_list_model_get_item (self->toplevels, 0);
   if (first != NULL)
-    astal_wlr_toplevel_activate (first);
+    unity_wlr_toplevel_activate (first);
 }
 
 void
@@ -266,5 +266,5 @@ unity_app_entry_close_all (UnityAppEntry *self)
     g_ptr_array_add (snapshot, g_list_model_get_item (self->toplevels, i));
 
   for (guint i = 0; i < snapshot->len; i++)
-    astal_wlr_toplevel_close (g_ptr_array_index (snapshot, i));
+    unity_wlr_toplevel_close (g_ptr_array_index (snapshot, i));
 }

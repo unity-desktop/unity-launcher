@@ -24,7 +24,7 @@
 
 #include <adwaita.h>
 #include <astal-wayfire.h>
-#include <astal-wlr.h>
+#include <unity-wlr-toplevels.h>
 #include <gdk/wayland/gdkwayland.h>
 #include <graphene.h>
 
@@ -131,9 +131,9 @@ push_rectangle_hints (UnityLauncherAppTile *self)
 
   for (guint i = 0; i < n; i++)
     {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (toplevels, i);
+      g_autoptr (UnityWlrToplevel) tl = g_list_model_get_item (toplevels, i);
       if (tl != NULL)
-        astal_wlr_toplevel_set_rectangle (tl, wsurface, x, y, w, h);
+        unity_wlr_toplevel_set_rectangle (tl, wsurface, x, y, w, h);
     }
 }
 
@@ -156,9 +156,9 @@ clear_rectangle_hints (UnityLauncherAppTile *self)
   guint n = toplevels ? g_list_model_get_n_items (toplevels) : 0;
   for (guint i = 0; i < n; i++)
     {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (toplevels, i);
+      g_autoptr (UnityWlrToplevel) tl = g_list_model_get_item (toplevels, i);
       if (tl != NULL)
-        astal_wlr_toplevel_set_rectangle (tl, wsurface, 0, 0, 0, 0);
+        unity_wlr_toplevel_set_rectangle (tl, wsurface, 0, 0, 0, 0);
     }
 }
 
@@ -195,8 +195,8 @@ spread_app_windows (UnityLauncherAppTile *self)
   g_autoptr (GHashTable) seen = g_hash_table_new (g_str_hash, g_str_equal);
   for (guint i = 0; i < n; i++)
     {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (toplevels, i);
-      const gchar *aid = tl ? astal_wlr_toplevel_get_app_id (tl) : NULL;
+      g_autoptr (UnityWlrToplevel) tl = g_list_model_get_item (toplevels, i);
+      const gchar *aid = tl ? unity_wlr_toplevel_get_app_id (tl) : NULL;
       if (aid == NULL || *aid == '\0' || g_hash_table_contains (seen, aid))
         continue;
 

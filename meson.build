@@ -18,7 +18,7 @@ dep_wlclient = dependency('wayland-client')
 dep_astal4 = dependency('astal-4-4.0')
 dep_unity_platform_components = dependency('unity-platform-components')
 dep_astalapps = dependency('astal-apps-0.1')
-dep_astalwlr = dependency('astal-wlr-0.1')
+dep_unity_platform_wlr = dependency('unity-platform-wlr')
 dep_astalwayfire = dependency('astal-wayfire-0.1')
 dep_json = dependency('json-glib-1.0')
 

@@ -22,7 +22,7 @@
 
 
 #include <astal-apps.h>
-#include <astal-wlr.h>
+#include <unity-wlr-toplevels.h>
 #include <gtk/gtk.h>
 
 #include "unity-app-catalog.h"
@@ -155,9 +155,9 @@ app_id_match_free (gpointer p)
 static gboolean
 match_app_id (gpointer item, gpointer user_data)
 {
-  AstalWlrToplevel *tl   = item;
+  UnityWlrToplevel *tl   = item;
   AppIdMatch         *m    = user_data;
-  const gchar        *tlid = astal_wlr_toplevel_get_app_id (tl);
+  const gchar        *tlid = unity_wlr_toplevel_get_app_id (tl);
 
   if (tlid == NULL || m->canonical == NULL)
     return FALSE;
@@ -237,8 +237,8 @@ compute_desired_order (UnityAppList *self)
       guint n = g_list_model_get_n_items (self->toplevels);
       for (guint i = 0; i < n; i++)
         {
-          g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (self->toplevels, i);
-          append_unique_entry (self, astal_wlr_toplevel_get_app_id (tl), FALSE, seen, out);
+          g_autoptr (UnityWlrToplevel) tl = g_list_model_get_item (self->toplevels, i);
+          append_unique_entry (self, unity_wlr_toplevel_get_app_id (tl), FALSE, seen, out);
         }
     }
 
@@ -316,11 +316,11 @@ invalidate_entry_filter (UnityAppList *self, const gchar *canonical)
 }
 
 static void
-on_toplevel_app_id_notify (AstalWlrToplevel *toplevel, GParamSpec *pspec,
+on_toplevel_app_id_notify (UnityWlrToplevel *toplevel, GParamSpec *pspec,
                            UnityAppList *self)
 {
   (void) pspec;
-  const gchar *new_canonical = canonical_id_for (self, astal_wlr_toplevel_get_app_id (toplevel));
+  const gchar *new_canonical = canonical_id_for (self, unity_wlr_toplevel_get_app_id (toplevel));
   const gchar *old_canonical = g_object_get_data (G_OBJECT (toplevel), "unity-canonical");
 
   sync_to_desired (self);
@@ -336,7 +336,7 @@ on_toplevel_app_id_notify (AstalWlrToplevel *toplevel, GParamSpec *pspec,
 }
 
 static void
-on_toplevel_activated_notify (AstalWlrToplevel *toplevel, GParamSpec *pspec,
+on_toplevel_activated_notify (UnityWlrToplevel *toplevel, GParamSpec *pspec,
                               UnityAppList *self)
 {
   (void) pspec;
@@ -347,9 +347,9 @@ on_toplevel_activated_notify (AstalWlrToplevel *toplevel, GParamSpec *pspec,
 }
 
 static void
-hook_toplevel (UnityAppList *self, AstalWlrToplevel *tl)
+hook_toplevel (UnityAppList *self, UnityWlrToplevel *tl)
 {
-  const gchar *canonical = canonical_id_for (self, astal_wlr_toplevel_get_app_id (tl));
+  const gchar *canonical = canonical_id_for (self, unity_wlr_toplevel_get_app_id (tl));
   g_object_set_data_full (G_OBJECT (tl), "unity-canonical", g_strdup (canonical), g_free);
   g_signal_connect_object (tl, "notify::app-id",
                            G_CALLBACK (on_toplevel_app_id_notify), self, G_CONNECT_DEFAULT);
@@ -365,7 +365,7 @@ on_toplevels_items_changed (GListModel *model, guint position, guint removed,
 
   for (guint i = 0; i < added; i++)
     {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (model, position + i);
+      g_autoptr (UnityWlrToplevel) tl = g_list_model_get_item (model, position + i);
       if (tl != NULL)
         hook_toplevel (self, tl);
     }
@@ -426,11 +426,11 @@ unity_app_list_init (UnityAppList *self)
   g_signal_connect_object (self->catalog, "notify::list",
                            G_CALLBACK (on_catalog_changed), self, G_CONNECT_DEFAULT);
 
-  self->toplevels = g_object_ref (G_LIST_MODEL (astal_wlr_toplevels_get_default ()));
+  self->toplevels = g_object_ref (G_LIST_MODEL (unity_wlr_toplevels_get_default ()));
   guint n = g_list_model_get_n_items (self->toplevels);
   for (guint i = 0; i < n; i++)
     {
-      g_autoptr (AstalWlrToplevel) tl = g_list_model_get_item (self->toplevels, i);
+      g_autoptr (UnityWlrToplevel) tl = g_list_model_get_item (self->toplevels, i);
       hook_toplevel (self, tl);
     }
   g_signal_connect_object (self->toplevels, "items-changed",

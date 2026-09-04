@@ -2,9 +2,10 @@
 
 A library for the Unity launcher and dash, for use in unity-shell.
 
-It builds on [Astal](https://github.com/unity-desktop/astal) and gives you two windows.
+It builds on [unity-platform](https://github.com/unity-desktop/unity-platform)
+and gives you two windows.
 
-- **`UnityLauncher`**: the vertical panel. It shows pinned and running apps, tracks Wayland toplevels, and launches or focuses them on click.
+- **`UnityLauncher`**: the launcher panel. It shows pinned and running apps, tracks Wayland toplevels, and launches or focuses them on click.
 - **`UnityDash`**: the overlay. It browses installed apps in a grid and filters them as you type.
 
 The app list is modelled on its own, so the launcher and the dash share one source.
@@ -22,9 +23,10 @@ Install the dependencies.
 - `gio-unix-2.0`
 - `graphene-1.0`
 - `wayland-client`
-- `astal-4-4.0`
-- `astal-apps-0.1`
-- `astal-wlr-0.1`
+- `json-glib-1.0`
+- `unity-platform-components`
+- `unity-platform-wlr`
+- `unity-platform-wayfire`
 - `meson`
 
 Then build and install.
