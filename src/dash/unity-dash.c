@@ -36,7 +36,6 @@ struct _UnityDash
 
   GSettings       *settings;
 
-  AdwToolbarView  *panel;
   GtkSearchEntry  *entry;
   AdwViewStack    *stack;
   UnityDashApps *apps_page;
@@ -74,14 +73,11 @@ apply_launcher_inset (UnityDash *self)
 static void
 apply_panel_alignment (UnityDash *self)
 {
-  UnityPosition pos;
-
-  if (unity_window_popup_get_maximized (UNITY_WINDOW_POPUP (self)))
-    return;
-
-  pos = g_settings_get_enum (self->settings, UNITY_LAUNCHER_KEY_POSITION);
-  gtk_widget_set_halign (GTK_WIDGET (self->panel), unity_position_dash_halign (pos));
-  gtk_widget_set_valign (GTK_WIDGET (self->panel), unity_position_dash_valign (pos));
+  UnityPosition pos = g_settings_get_enum (self->settings, UNITY_LAUNCHER_KEY_POSITION);
+  unity_window_popup_set_content_halign (UNITY_WINDOW_POPUP (self),
+                                         unity_position_dash_halign (pos));
+  unity_window_popup_set_content_valign (UNITY_WINDOW_POPUP (self),
+                                         unity_position_dash_valign (pos));
 }
 
 static void
@@ -143,12 +139,9 @@ on_entry_key (GtkEventControllerKey *key, guint keyval, guint keycode,
 void
 unity_dash_reset (UnityDash *self)
 {
-  gboolean maximized;
-
   g_return_if_fail (UNITY_IS_DASH (self));
 
-  maximized = g_settings_get_boolean (self->settings, UNITY_LAUNCHER_KEY_DASH_MAXIMIZED);
-  unity_window_popup_set_maximized (UNITY_WINDOW_POPUP (self), maximized);
+  unity_window_popup_set_maximized (UNITY_WINDOW_POPUP (self), FALSE);
 
   unity_dash_search_reset (self->search_page);
   adw_view_stack_set_visible_child_name (self->stack, PAGE_APPS);
@@ -234,7 +227,6 @@ unity_dash_class_init (UnityDashClass *klass)
 
   gtk_widget_class_set_template_from_resource (
     widget_class, "/org/unity/launcher/dash/unity-dash.ui");
-  gtk_widget_class_bind_template_child (widget_class, UnityDash, panel);
   gtk_widget_class_bind_template_child (widget_class, UnityDash, entry);
   gtk_widget_class_bind_template_child (widget_class, UnityDash, stack);
   gtk_widget_class_bind_template_child (widget_class, UnityDash, apps_page);
@@ -248,6 +240,10 @@ unity_dash_init (UnityDash *self)
   self->settings = unity_settings_get_default ();
 
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  astal_window_set_anchor (ASTAL_WINDOW (self),
+                           ASTAL_WINDOW_ANCHOR_TOP  | ASTAL_WINDOW_ANCHOR_BOTTOM |
+                           ASTAL_WINDOW_ANCHOR_LEFT | ASTAL_WINDOW_ANCHOR_RIGHT);
 
   gtk_search_entry_set_key_capture_widget (self->entry, GTK_WIDGET (self));
 
@@ -267,8 +263,6 @@ unity_dash_init (UnityDash *self)
   apply_panel_alignment (self);
   g_signal_connect_object (self->settings, "changed::" UNITY_LAUNCHER_KEY_POSITION,
                            G_CALLBACK (on_position_changed), self, G_CONNECT_SWAPPED);
-  g_signal_connect_object (self, "notify::maximized",
-                           G_CALLBACK (apply_panel_alignment), self, G_CONNECT_SWAPPED);
 
   unity_dash_reset (self);
 }

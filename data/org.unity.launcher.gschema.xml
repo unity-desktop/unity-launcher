@@ -42,10 +42,6 @@
       <range min="64" max="128"/>
       <summary>Dash icon size</summary>
     </key>
-    <key name="dash-maximized" type="b">
-      <default>false</default>
-      <summary>Open the dash maximized rather than as a popover</summary>
-    </key>
     <key name="show-frequent-apps" type="b">
       <default>true</default>
       <summary>Show the frequent-apps row above the dash's apps grid</summary>
