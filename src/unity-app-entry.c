@@ -20,7 +20,7 @@
 
 #include "unity-app-entry.h"
 
-#include <unity-wlr-toplevels.h>
+#include "wlr-protocols/unity-wlr-toplevels.h"
 
 #include "unity-app-catalog.h"
 

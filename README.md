@@ -25,7 +25,8 @@ Install the dependencies.
 - `wayland-client`
 - `json-glib-1.0`
 - `unity-platform-components`
-- `unity-platform-wlr`
+- `astal-wl-0.1`
+- `wayland-scanner`
 - `unity-platform-wayfire`
 - `meson`
 

@@ -22,7 +22,7 @@
 
 
 #include <astal-apps.h>
-#include <unity-wlr-toplevels.h>
+#include "wlr-protocols/unity-wlr-toplevels.h"
 #include <gtk/gtk.h>
 
 #include "unity-app-catalog.h"
